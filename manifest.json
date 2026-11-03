@@ -1,0 +1,19 @@
+{
+  "name": "Toque Fácil — Repertório e Afinador",
+  "short_name": "Toque Fácil",
+  "description": "Organize cifras próprias, encontre acordes e pratique com afinador e metrônomo.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3eb",
+  "theme_color": "#f6f3eb",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

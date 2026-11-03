@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f6f3eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Toque Fácil — seu violão, suas músicas</title>
+    <meta name="description" content="Encontre músicas para tocar com os acordes que você já conhece e afine seu violão.">
+    <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Toque Fácil, início">
+        <span class="brand-mark" aria-hidden="true">♪</span>
+        toque<span>fácil</span>
+      </a>
+      <nav class="nav-links" aria-label="Navegação principal">
+        <a href="#repertorio">Repertório</a>
+        <a href="#editor">Editor</a>
+        <a href="#ritmo">Ritmo</a>
+        <a href="#afinador">Afinador</a>
+      </nav>
+      <button class="header-cta install-button" id="install-app" type="button" hidden>Instalar app <span aria-hidden="true">↓</span></button>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span> SEU PRÓXIMO SOM COMEÇA AQUI</div>
+          <h1>Você já sabe acordes suficientes para <em>tocar mais.</em></h1>
+          <p>Escolha os acordes que conhece e descubra músicas para o seu momento. Sem complicação, só violão e vontade de tocar.</p>
+          <a class="primary-button" href="#repertorio">Explorar músicas <span aria-hidden="true">↓</span></a>
+          <div class="hero-note"><span class="note-icon" aria-hidden="true">♫</span> Um acorde de cada vez. Uma música de cada vez.</div>
+        </div>
+        <div class="hero-art" aria-label="Ilustração de um violão">
+          <div class="art-sun"></div>
+          <div class="art-card art-card-top"><span>♪</span> feito pra tocar</div>
+          <svg class="guitar" viewBox="0 0 280 450" role="img" aria-label="Violão ilustrado">
+            <path d="M142 34c-12 0-22 8-22 20v106c-23-17-52-16-72 3-27 26-21 62-4 90-35 42-45 99-21 144 25 46 83 63 130 39 48 24 106 7 131-39 24-45 14-102-21-144 17-28 23-64-4-90-20-19-49-20-72-3V54c0-12-10-20-22-20h-23z" fill="#c56c3b"/>
+            <path d="M133 26h34v178h-34z" fill="#d89a68"/>
+            <path d="M129 29h42v18h-42zM132 50h36v126h-36z" fill="#583c2e"/>
+            <ellipse cx="145" cy="275" rx="60" ry="67" fill="#e1a97b"/>
+            <circle cx="145" cy="275" r="27" fill="#50392e"/>
+            <circle cx="145" cy="275" r="17" fill="#342820"/>
+            <path d="M145 33v248" stroke="#fff0d9" stroke-width="2"/>
+            <path d="M135 82h31M135 102h31M135 122h31M135 142h31M135 162h31" stroke="#d7bb93" stroke-width="2"/>
+            <path d="M139 54v-9M145 54v-9M151 54v-9M157 54v-9" stroke="#f8e8ce" stroke-width="2"/>
+            <path d="M83 196c-18 25-16 46-9 61M207 196c18 25 16 46 9 61" fill="none" stroke="#e9b483" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+          <div class="art-card art-card-bottom"><span class="sound-bars">▮▮▮</span> seu ritmo, seu jeito</div>
+          <span class="art-sparkle sparkle-one" aria-hidden="true">✳</span>
+          <span class="art-sparkle sparkle-two" aria-hidden="true">✦</span>
+        </div>
+      </section>
+
+      <section class="catalog section-wrap" id="repertorio">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">REPERTÓRIO DO SEU JEITO</div>
+            <h2>Seu repertório</h2>
+            <p>Importe suas cifras e encontre as músicas que combinam com os acordes que você conhece.</p>
+          </div>
+          <div class="song-count"><strong id="song-count">0</strong><span>músicas para explorar</span></div>
+        </div>
+
+        <div class="playlist-toolbar">
+          <label for="playlist-filter">Lista
+          <select id="playlist-filter"><option value="all">Todas as cifras</option></select>
+          </label>
+          <button class="tool-button" id="create-playlist" type="button">＋ Nova lista</button>
+          <button class="tool-button" id="delete-playlist" type="button" disabled>Excluir lista</button>
+          <span id="playlist-count" aria-live="polite"></span>
+        </div>
+        <div class="catalog-layout">
+          <aside class="filter-panel">
+            <div class="panel-title"><span class="panel-icon" aria-hidden="true">⌁</span><h3>Meus acordes</h3></div>
+            <p class="filter-hint">Toque para selecionar os acordes que já sabe.</p>
+            <div class="chord-list" id="chord-list" aria-label="Selecione os acordes que você conhece"></div>
+            <button class="text-button" id="clear-chords" type="button">Limpar seleção</button>
+            <div class="filter-divider"></div>
+            <label class="favorites-toggle"><input id="favorites-only" type="checkbox"><span class="toggle-track"></span><span>Só minhas favoritas</span></label>
+            <div class="filter-tip"><span aria-hidden="true">✦</span><p><strong>Dica leve</strong>Comece com três acordes. Tem muita música esperando por eles.</p></div>
+          </aside>
+
+          <div class="songs-area">
+            <div class="search-row">
+              <label class="search-box">
+                <span aria-hidden="true">⌕</span>
+                <input id="song-search" type="search" placeholder="Buscar por música, artista ou estilo..." autocomplete="off">
+              </label>
+              <label class="sort-select">
+                <span class="sr-only">Ordenar músicas</span>
+                <select id="sort-songs">
+                  <option value="manual">Minha ordem</option>
+                  <option value="easy">Mais fáceis</option>
+                  <option value="name">Nome A–Z</option>
+                  <option value="favorites">Favoritas primeiro</option>
+                </select>
+              </label>
+            </div>
+            <div class="active-filters" id="active-filters" aria-live="polite"></div>
+            <div class="song-grid" id="song-grid"></div>
+            <div class="empty-state" id="empty-state" hidden>
+              <span aria-hidden="true">♫</span>
+              <h3 id="empty-title">Seu repertório está vazio</h3>
+              <p id="empty-message">Importe uma cifra ou crie uma nova para começar seu repertório.</p>
+              <button class="text-button" id="reset-filters" type="button">Criar ou importar cifra</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-section section-wrap" id="editor">
+        <div class="section-heading editor-heading">
+          <div>
+            <div class="eyebrow">SEU REPERTÓRIO, DO SEU JEITO</div>
+            <h2>Edite e organize suas cifras</h2>
+            <p>Escreva sua cifra com acordes entre colchetes, como <code>[C]um exemplo [G]</code>.</p>
+          </div>
+          <a class="studio-link" href="https://tiagoosilva43-sudo.github.io/Cifras-Studio-Pro/" target="_blank" rel="noopener noreferrer">Conheça o Cifras Studio Pro ↗</a>
+        </div>
+
+        <div class="editor-card">
+          <div class="editor-toolbar">
+            <button class="tool-button tool-primary" id="new-song" type="button">＋ Nova cifra</button>
+            <div class="import-drop-zone">
+              <label class="tool-button" for="import-project">Importar / soltar arquivo</label>
+              <input id="import-project" type="file" accept=".json,.txt,.cho,.pro,.chordpro,application/json,text/plain" hidden>
+            </div>
+            <button class="tool-button" id="export-project" type="button">Exportar projeto</button>
+            <button class="tool-button" id="backup-data" type="button">Backup completo</button>
+            <button class="tool-button" id="print-song" type="button">Salvar como PDF</button>
+            <button class="tool-button" id="search-cifraclub" type="button">Buscar no Cifra Club ↗</button>
+            <span class="save-status" id="save-status" aria-live="polite">Salvo neste dispositivo</span>
+          </div>
+          <div class="editor-form">
+            <section class="paste-import" aria-labelledby="paste-heading">
+              <label id="paste-heading" for="paste-lyrics">Colar cifra copiada</label>
+              <textarea id="paste-lyrics" rows="4" placeholder="Cole aqui a cifra com os acordes acima da letra. Ex.:&#10;C       G      Am&#10;Uma linha da música para formatar"></textarea>
+              <div class="paste-actions">
+                <button class="tool-button" id="convert-pasted-lyrics" type="button">Formatar e revisar</button>
+                <button class="tool-button" id="clear-pasted-lyrics" type="button">Limpar campo</button>
+                <span>O formato é sugerido; confira o alinhamento antes de salvar.</span>
+              </div>
+            </section>
+            <div class="editor-fields">
+              <label>Título<input id="song-title" maxlength="100" placeholder="Nome da música"></label>
+              <label>Artista / autor<input id="song-author" maxlength="100" placeholder="Artista ou autor"></label>
+              <label>Tom
+                <select id="song-key">
+                  <option>C</option><option>C#</option><option>D</option><option>Eb</option><option>E</option><option>F</option>
+                  <option>F#</option><option>G</option><option>Ab</option><option>A</option><option>Bb</option><option>B</option>
+                </select>
+              </label>
+              <label>Andamento (BPM)<input id="song-bpm" type="number" min="40" max="240" value="90"></label>
+            </div>
+            <div class="transpose-controls">
+              <span>Tom da cifra</span>
+              <button id="transpose-down" type="button" aria-label="Baixar um semitom">−</button>
+              <strong id="transpose-label">Original</strong>
+              <button id="transpose-up" type="button" aria-label="Subir um semitom">＋</button>
+              <button id="transpose-reset" type="button">Voltar ao tom original</button>
+            </div>
+            <label class="lyrics-label" for="song-lyrics">Cifra e letra
+              <textarea id="song-lyrics" rows="10" spellcheck="false" placeholder="Verso&#10;[C]Escreva aqui uma [G]linha da sua cifra&#10;[Am]Acordes entre colchetes aparecem sobre a letra&#10;&#10;Refrão&#10;[F]Adicione suas próprias cifras"></textarea>
+            </label>
+            <div class="editor-preview-heading"><strong>Pré-visualização</strong><span>As letras são salvas apenas neste dispositivo.</span></div>
+            <div class="reader-controls">
+              <button class="tool-button" id="open-reader" type="button">Abrir modo de leitura</button>
+              <label>Tamanho <input id="reader-font-size" type="range" min="14" max="36" value="18"><span id="reader-font-label">18 px</span></label>
+              <label>Rolagem <input id="reader-speed" type="range" min="0" max="80" value="0"><span id="reader-speed-label">Desligada</span></label>
+              <button class="tool-button" id="reader-scroll-toggle" type="button">▶ Rolar cifra</button>
+            </div>
+            <div class="reader-overlay" id="reader-overlay" hidden>
+              <div class="reader-overlay-toolbar">
+                <strong id="reader-title">Modo de leitura</strong>
+                <button class="tool-button" id="reader-overlay-scroll" type="button">▶ Rolar</button>
+                <label>Tamanho <input id="reader-overlay-font" type="range" min="14" max="48" value="24"></label>
+                <button class="tool-button" id="close-reader" type="button" aria-label="Fechar modo de leitura">Fechar ✕</button>
+              </div>
+              <div class="lyrics-preview reader-preview" id="reader-preview"></div>
+            </div>
+            <div class="lyrics-preview" id="lyrics-preview" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <section class="import-preview" id="import-preview" hidden aria-labelledby="import-preview-heading">
+          <div class="import-preview-header">
+            <div><h3 id="import-preview-heading">Revise antes de importar</h3><p id="import-preview-summary"></p></div>
+            <button class="tool-button" id="cancel-import" type="button">Cancelar</button>
+          </div>
+          <label class="replace-backup"><input id="replace-backup" type="checkbox"> Substituir minhas cifras e preferências ao restaurar backup</label>
+          <div class="import-preview-list" id="import-preview-list"></div>
+          <div class="import-preview-actions">
+            <button class="tool-button tool-primary" id="confirm-import" type="button">Confirmar importação</button>
+            <span>Confira os títulos e o conteúdo antes de salvar no dispositivo.</span>
+          </div>
+        </section>
+
+        <div class="editor-lower-grid">
+          <section class="tool-card audio-card" aria-labelledby="audio-heading">
+            <div class="tool-card-heading"><span class="tool-icon" aria-hidden="true">♫</span><div><h3 id="audio-heading">Importar áudio</h3><p>Ouça seu arquivo e veja sugestões de acordes analisadas localmente.</p></div></div>
+            <label class="audio-drop" for="audio-file"><span aria-hidden="true">↑</span><strong>Escolher um áudio</strong><small>MP3, WAV, OGG, M4A ou outro formato aceito pelo navegador · até 50 MB</small></label>
+            <input id="audio-file" type="file" accept="audio/*" hidden>
+            <div class="audio-trim">
+              <label>Início <input id="audio-start" type="number" min="0" step="0.1" value="0"><span id="audio-start-label">0:00</span></label>
+              <label>Fim <input id="audio-end" type="number" min="0" step="0.1" value="0"><span id="audio-end-label">0:00</span></label>
+            </div>
+            <audio id="audio-player" controls hidden></audio>
+            <div class="audio-actions">
+              <button class="tool-button" id="analyze-audio" type="button" disabled>Analisar acordes</button>
+              <button class="tool-button" id="export-audio" type="button" disabled>Baixar áudio original</button>
+            </div>
+            <p class="audio-status" id="audio-status" aria-live="polite">O áudio não sai do seu dispositivo. A análise é experimental e pode errar em gravações com vários instrumentos.</p>
+            <div class="chord-detections" id="chord-detections"></div>
+            <button class="tool-button tool-primary" id="insert-detected-chords" type="button" hidden>Inserir sugestão na cifra</button>
+            <button class="tool-button" id="export-audio-section" type="button" disabled>Exportar trecho selecionado</button>
+          </section>
+
+          <section class="tool-card metronome-card" id="ritmo" aria-labelledby="metronome-heading">
+            <div class="tool-card-heading"><span class="tool-icon" aria-hidden="true">♩</span><div><h3 id="metronome-heading">Ritmo e metrônomo</h3><p>Pratique as batidas no andamento da música.</p></div></div>
+            <label class="tempo-control" for="metronome-bpm"><span>Andamento</span><strong><span id="metronome-value">90</span> BPM</strong><input id="metronome-bpm" type="range" min="40" max="220" value="90"></label>
+            <div class="beat-options" role="group" aria-label="Batidas de metrônomo por compasso">
+              <button type="button" data-beats="2">2 tempos</button>
+              <button type="button" data-beats="3">3 tempos</button>
+              <button class="selected" type="button" data-beats="4">4 tempos</button>
+            </div>
+            <label class="rhythm-select" for="rhythm-pattern">Exercício de batida
+              <select id="rhythm-pattern">
+                <option value="basic">Quatro tempos · ↓ ↓ ↓ ↓</option>
+                <option value="pop">Pop · ↓ ↓↑ ↑↓↑</option>
+                <option value="ballad">Balada · ↓ — ↓↑ — ↑↓↑</option>
+              </select>
+            </label>
+            <div class="beat-indicator" id="beat-indicator" aria-live="off"><span></span><span></span><span></span><span></span></div>
+            <button class="metronome-toggle" id="metronome-toggle" type="button">▶ Iniciar exercício</button>
+            <p class="audio-status">Os sons são pulsos de referência; as setas mostram a direção da mão.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="tuner-section" id="afinador">
+        <div class="tuner-inner">
+          <div class="tuner-copy">
+            <div class="eyebrow eyebrow-light">ANTES DE COMEÇAR</div>
+            <h2>Um violão afinado muda tudo.</h2>
+            <p>Use o afinador pelo microfone do seu dispositivo. Toque uma corda por vez e ajuste até a nota ficar no centro.</p>
+            <ul class="tuner-notes">
+              <li><span>✓</span> Funciona direto no navegador</li>
+              <li><span>✓</span> O áudio é processado no seu dispositivo</li>
+            </ul>
+          </div>
+          <div class="tuner-card">
+            <div class="tuner-card-top">
+              <div><span class="live-dot" id="live-dot"></span><span id="tuner-status">PRONTO PARA AFINAR</span></div>
+              <span class="tuner-label">AFINADOR CROMÁTICO</span>
+            </div>
+            <div class="tuner-display" id="tuner-display">
+              <div class="tuner-note" id="tuner-note">—</div>
+              <div class="tuner-octave" id="tuner-octave">Toque uma corda</div>
+              <div class="tuner-meter" aria-label="Indicador de afinação">
+                <span class="meter-mark meter-left">♭</span>
+                <div class="meter-track"><span class="meter-center"></span><span class="meter-needle" id="meter-needle"></span></div>
+                <span class="meter-mark meter-right">♯</span>
+              </div>
+              <div class="tuner-guidance" id="tuner-guidance">Sua nota aparecerá aqui</div>
+            </div>
+            <div class="reference-control">
+              <label for="reference-a">Calibração (Lá₄)</label>
+              <input id="reference-a" type="number" min="432" max="446" step="1" value="440">
+              <span>Hz</span>
+            </div>
+            <div class="guitar-strings" aria-label="Afinação padrão do violão">
+              <span>6ª corda · Mi₂</span><span>5ª corda · Lá₂</span><span>4ª corda · Ré₃</span>
+              <span>3ª corda · Sol₃</span><span>2ª corda · Si₃</span><span>1ª corda · Mi₄</span>
+            </div>
+            <button class="tuner-button" id="tuner-toggle" type="button"><span aria-hidden="true">🎙</span> Começar a afinar</button>
+            <p class="mic-note">Seu navegador vai pedir autorização para usar o microfone.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a class="brand brand-footer" href="#"><span class="brand-mark" aria-hidden="true">♪</span> toque<span>fácil</span></a>
+      <p>Feito para curtir cada acorde. <span aria-hidden="true">♡</span></p>
+      <a href="https://github.com/brunoamaral2024/Cifras-Studio-Pro" target="_blank" rel="noopener noreferrer">Editor inspirado no Cifras Studio Pro</a>
+      <a href="#repertorio">Voltar ao repertório ↑</a>
+    </footer>
+  </body>
+</html>
