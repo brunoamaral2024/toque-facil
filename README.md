@@ -12,6 +12,16 @@ npx --yes serve . --listen 3000
 
 Abra `http://localhost:3000`. O servidor precisa continuar aberto enquanto você usa o app. A instalação como PWA e o afinador dependem de uma origem segura, como `localhost` ou HTTPS.
 
+## Testes
+
+Com Node.js instalado, execute os testes de regressão:
+
+```powershell
+npm test
+```
+
+O fluxo do GitHub Pages executa os mesmos testes antes de publicar o app.
+
 ## Recursos
 
 - Catálogo começa vazio para você importar ou criar suas próprias cifras.
@@ -26,10 +36,13 @@ Abra `http://localhost:3000`. O servidor precisa continuar aberto enquanto você
 - Sugestões experimentais de acordes por análise local do trecho de áudio; os marcadores de tempo permitem ouvir cada sugestão. São estimativas, não uma transcrição garantida; confirme os resultados antes de usar.
 - Exercícios de ritmo com padrões de batida e metrônomo ajustável.
 - Afinador cromático com calibração de Lá₄ entre 432 e 446 Hz.
+- Orientação inicial para criar ou importar a primeira cifra e explicação sobre backups entre dispositivos.
 - Preferências, cifras pessoais e favoritos salvos no navegador.
-- PWA com shell da aplicação em cache para abrir sem internet depois do primeiro acesso.
+- PWA com cache offline e aviso para aplicar atualizações quando uma nova versão estiver pronta.
 
-As cifras e letras pessoais não são enviadas a um servidor; ficam no armazenamento local do navegador. Faça backups completos regularmente. Arquivos de áudio não são incluídos nos projetos ou backups JSON.
+As cifras e letras pessoais não são enviadas a um servidor; ficam no armazenamento local do navegador e do dispositivo em que foram criadas. Abrir o app por um endereço público em outro aparelho não sincroniza os dados automaticamente. Para transferir o repertório, baixe um backup completo e restaure-o no outro aparelho. Faça backups regularmente; arquivos de áudio não são incluídos nos projetos ou backups JSON.
+
+O app grava cifras, listas, favoritas, ordem e preferências em um único registro local. Se o navegador recusar a gravação, o app informa o erro e não confirma a importação ou restauração como concluída.
 
 ## Cifra Club e fontes
 

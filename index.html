@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script src="app.js" defer></script>
+    <script src="app.js" type="module"></script>
   </head>
   <body>
     <header class="topbar">
@@ -111,6 +111,18 @@
               <span aria-hidden="true">♫</span>
               <h3 id="empty-title">Seu repertório está vazio</h3>
               <p id="empty-message">Importe uma cifra ou crie uma nova para começar seu repertório.</p>
+              <div class="empty-onboarding" id="empty-onboarding">
+                <ol>
+                  <li>Crie sua primeira cifra ou importe um arquivo.</li>
+                  <li>Marque os acordes que você já conhece para filtrar o repertório.</li>
+                  <li>Faça backups para levar suas cifras para outro dispositivo.</li>
+                </ol>
+                <div class="empty-onboarding-actions">
+                  <button class="tool-button tool-primary" id="empty-new-song" type="button">＋ Criar primeira cifra</button>
+                  <button class="tool-button" id="empty-import" type="button">Importar cifra</button>
+                </div>
+                <p class="storage-note">Suas cifras ficam neste navegador e neste dispositivo. Para acessá-las em outro aparelho, use o backup completo e restaure-o nele.</p>
+              </div>
               <button class="text-button" id="reset-filters" type="button">Criar ou importar cifra</button>
             </div>
           </div>
@@ -287,6 +299,11 @@
         </div>
       </section>
     </main>
+
+    <div class="app-update" id="app-update" role="status" hidden>
+      <span>Uma nova versão do Toque Fácil está pronta.</span>
+      <button class="tool-button tool-primary" id="apply-app-update" type="button">Atualizar app</button>
+    </div>
 
     <footer class="footer">
       <a class="brand brand-footer" href="#"><span class="brand-mark" aria-hidden="true">♪</span> toque<span>fácil</span></a>

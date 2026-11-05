@@ -1,10 +1,35 @@
+import {
+  getChordsFromLyrics,
+  getVisibleSongs as filterVisibleSongs,
+  createBackup,
+  mergeBackupData,
+  normalizeChordFamily,
+  normalizeImportedSong as parseImportedSong,
+  readAppState,
+  transposeChord,
+  transposePitch,
+  validateBackup,
+  writeAppState
+} from "./app-core.mjs";
+
 const chords = ["A", "Am", "A#", "A#m", "B", "Bm", "C", "Cm", "C#", "C#m", "D", "Dm", "D#", "D#m", "E", "Em", "F", "Fm", "F#", "F#m", "G", "Gm", "G#", "G#m"];
 const pitchClasses = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+let storedAppState;
+let storedStateLoadError;
+
+try {
+  storedAppState = readAppState(localStorage);
+} catch (error) {
+  storedStateLoadError = error;
+  console.error("Não foi possível ler os dados salvos; os dados existentes serão preservados.", error);
+}
 
 function readStoredSongs() {
   try {
-    const stored = JSON.parse(localStorage.getItem("toca-leve-songs") || "[]");
-    return Array.isArray(stored) ? stored.filter((song) => song && typeof song.id === "string" && typeof song.title === "string") : [];
+    const stored = storedAppState ? storedAppState.songs : JSON.parse(localStorage.getItem("toca-leve-songs") || "[]");
+    return Array.isArray(stored)
+      ? stored.map((song) => parseImportedSong(song, "Cifra importada")).filter(Boolean)
+      : [];
   } catch (error) {
     console.warn("Não foi possível carregar as cifras salvas.", error);
     return [];
@@ -19,8 +44,11 @@ document.querySelector("#create-playlist").addEventListener("click", () => {
   const name = window.prompt("Nome da nova lista:");
   if (!name?.trim()) return;
   const playlist = { id: crypto.randomUUID(), name: name.trim(), songIds: [] };
-  playlists.push(playlist);
-  savePlaylists();
+  try {
+    commitAppData(() => playlists.push(playlist));
+  } catch {
+    return;
+  }
   render();
   document.querySelector("#playlist-filter").value = playlist.id;
   render();
@@ -29,14 +57,23 @@ document.querySelector("#delete-playlist").addEventListener("click", () => {
   const select = document.querySelector("#playlist-filter");
   const playlist = playlists.find((item) => item.id === select.value);
   if (!playlist || !window.confirm(`Excluir a lista "${playlist.name}"? As cifras serão mantidas no repertório.`)) return;
-  playlists = playlists.filter((item) => item.id !== playlist.id);
-  savePlaylists();
+  try {
+    commitAppData(() => {
+      playlists = playlists.filter((item) => item.id !== playlist.id);
+    });
+  } catch {
+    return;
+  }
   select.value = "all";
   document.querySelector("#delete-playlist").disabled = true;
   render();
 });
 
 function readStoredPlaylists() {
+  if (storedAppState) {
+    return storedAppState.playlists.filter((playlist) => playlist && typeof playlist.id === "string"
+      && typeof playlist.name === "string" && Array.isArray(playlist.songIds));
+  }
   try {
     const stored = JSON.parse(localStorage.getItem("toque-facil-playlists") || "[]");
     return Array.isArray(stored)
@@ -49,6 +86,7 @@ function readStoredPlaylists() {
 }
 
 function readStoredOrder() {
+  if (storedAppState) return storedAppState.songOrder.filter((id) => typeof id === "string");
   try {
     const stored = JSON.parse(localStorage.getItem("toque-facil-song-order") || "[]");
     return Array.isArray(stored) ? stored.filter((id) => typeof id === "string") : [];
@@ -59,6 +97,7 @@ function readStoredOrder() {
 }
 
 function readPreferences() {
+  if (storedAppState) return storedAppState.preferences;
   try {
     const stored = JSON.parse(localStorage.getItem("toca-leve-preferences") || "{}");
     return stored && typeof stored === "object" ? stored : {};
@@ -91,6 +130,7 @@ let metronomeContext;
 let metronomeTimer;
 let metronomeBeat = 0;
 let metronomeBeatsPerBar = 4;
+let metronomeRun = 0;
 let installPrompt;
 let pendingImport;
 let readerFrame;
@@ -98,6 +138,7 @@ let readerLastTime = 0;
 let readerTarget;
 
 function readStoredFavorites() {
+  if (storedAppState) return storedAppState.favorites.filter((id) => typeof id === "string" && songs.some((song) => song.id === id));
   try {
     const stored = JSON.parse(localStorage.getItem("toca-leve-favorites") || "[]");
     return Array.isArray(stored) ? stored.filter((id) => songs.some((song) => song.id === id)) : [];
@@ -107,38 +148,11 @@ function readStoredFavorites() {
   }
 }
 
-function saveFavorites() {
-  try {
-    localStorage.setItem("toca-leve-favorites", JSON.stringify([...favoriteSongs]));
-  } catch (error) {
-    console.warn("Não foi possível salvar as músicas favoritas.", error);
-  }
-}
-
 function savePreferences() {
   const referenceA = Number(document.querySelector("#reference-a").value);
   const safeReferenceA = Number.isFinite(referenceA) ? Math.min(446, Math.max(432, referenceA)) : 440;
   document.querySelector("#reference-a").value = safeReferenceA;
-  try {
-    localStorage.setItem("toca-leve-preferences", JSON.stringify({
-      chords: [...selectedChords],
-      referenceA: safeReferenceA,
-      metronomeBpm: Number(document.querySelector("#metronome-bpm").value)
-    }));
-  } catch (error) {
-    console.warn("Não foi possível salvar as preferências.", error);
-  }
-}
-
-function savePlaylists() {
-  try {
-    localStorage.setItem("toque-facil-playlists", JSON.stringify(playlists));
-    localStorage.setItem("toque-facil-song-order", JSON.stringify(songOrder));
-  } catch (error) {
-    console.error("Não foi possível salvar listas e ordem do repertório.", error);
-    saveStatus.textContent = "Não foi possível salvar listas. Faça um backup.";
-    saveStatus.classList.add("save-error");
-  }
+  return saveAppDataWithFeedback();
 }
 
 function renderChords() {
@@ -151,9 +165,15 @@ function renderChords() {
     button.setAttribute("aria-pressed", String(selectedChords.has(chord)));
     button.setAttribute("aria-label", `${chord}${selectedChords.has(chord) ? ", selecionado" : ""}`);
     button.addEventListener("click", () => {
-      if (selectedChords.has(chord)) selectedChords.delete(chord);
-      else selectedChords.add(chord);
-      savePreferences();
+      try {
+        commitAppData(() => {
+          if (selectedChords.has(chord)) selectedChords.delete(chord);
+          else selectedChords.add(chord);
+        });
+      } catch {
+        render();
+        return;
+      }
       render();
     });
     chordList.append(button);
@@ -161,29 +181,17 @@ function renderChords() {
 }
 
 function getVisibleSongs() {
-  const query = searchInput.value.trim().toLocaleLowerCase("pt-BR");
-  const playlistFilter = document.querySelector("#playlist-filter").value;
-  const result = songs.filter((song) => {
-    const hasEveryChord = [...selectedChords].every((chord) => song.chords.some((songChord) => normalizeChordFamily(songChord) === normalizeChordFamily(chord)));
-    const matchesQuery = !query || [song.title, song.artist, song.style, ...song.chords]
-      .some((value) => value.toLocaleLowerCase("pt-BR").includes(query));
-    const matchesPlaylist = playlistFilter === "all" || playlists.find((playlist) => playlist.id === playlistFilter)?.songIds.includes(song.id);
-    return hasEveryChord && matchesQuery && matchesPlaylist && (!favoritesOnly.checked || favoriteSongs.has(song.id));
+  return filterVisibleSongs({
+    songs,
+    selectedChords,
+    query: searchInput.value,
+    playlistFilter: document.querySelector("#playlist-filter").value,
+    playlists,
+    favoritesOnly: favoritesOnly.checked,
+    favoriteSongs,
+    sort: sortSelect.value,
+    songOrder
   });
-
-  if (sortSelect.value === "name") result.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
-  else if (sortSelect.value === "favorites") {
-    result.sort((a, b) => Number(favoriteSongs.has(b.id)) - Number(favoriteSongs.has(a.id)) || a.difficulty - b.difficulty);
-  } else if (sortSelect.value === "easy") {
-    result.sort((a, b) => a.difficulty - b.difficulty || a.chords.length - b.chords.length);
-  } else {
-    result.sort((a, b) => {
-      const aIndex = songOrder.indexOf(a.id);
-      const bIndex = songOrder.indexOf(b.id);
-      return (aIndex < 0 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex < 0 ? Number.MAX_SAFE_INTEGER : bIndex);
-    });
-  }
-  return result;
 }
 
 function createSongCard(song) {
@@ -203,9 +211,15 @@ function createSongCard(song) {
   favorite.setAttribute("aria-pressed", String(isFavorite));
   favorite.setAttribute("aria-label", `${isFavorite ? "Remover" : "Adicionar"} ${song.title} ${isFavorite ? "das" : "às"} favoritas`);
   favorite.addEventListener("click", () => {
-    if (favoriteSongs.has(song.id)) favoriteSongs.delete(song.id);
-    else favoriteSongs.add(song.id);
-    saveFavorites();
+    try {
+      commitAppData(() => {
+        if (favoriteSongs.has(song.id)) favoriteSongs.delete(song.id);
+        else favoriteSongs.add(song.id);
+      });
+    } catch {
+      render();
+      return;
+    }
     render();
   });
   top.append(category, favorite);
@@ -252,9 +266,15 @@ function createSongCard(song) {
     return option;
   }));
   playlistSelect.addEventListener("change", () => {
-    for (const playlist of playlists) playlist.songIds = playlist.songIds.filter((id) => id !== song.id);
-    if (playlistSelect.value) playlists.find((playlist) => playlist.id === playlistSelect.value)?.songIds.push(song.id);
-    savePlaylists();
+    try {
+      commitAppData(() => {
+        for (const playlist of playlists) playlist.songIds = playlist.songIds.filter((id) => id !== song.id);
+        if (playlistSelect.value) playlists.find((playlist) => playlist.id === playlistSelect.value)?.songIds.push(song.id);
+      });
+    } catch {
+      render();
+      return;
+    }
     render();
   });
   const moveUp = document.createElement("button");
@@ -292,9 +312,15 @@ function moveSong(id, direction) {
   const index = songOrder.indexOf(id);
   const targetIndex = index + direction;
   if (index < 0 || targetIndex < 0 || targetIndex >= songOrder.length) return;
-  [songOrder[index], songOrder[targetIndex]] = [songOrder[targetIndex], songOrder[index]];
+  try {
+    commitAppData(() => {
+      [songOrder[index], songOrder[targetIndex]] = [songOrder[targetIndex], songOrder[index]];
+    });
+  } catch {
+    render();
+    return;
+  }
   sortSelect.value = "manual";
-  savePlaylists();
   render();
 }
 
@@ -306,11 +332,14 @@ function render() {
   songCount.textContent = visible.length;
   emptyState.hidden = visible.length > 0;
   songGrid.hidden = visible.length === 0;
-  document.querySelector("#empty-title").textContent = songs.length ? "Ainda não encontramos essa combinação" : "Seu repertório está vazio";
-  document.querySelector("#empty-message").textContent = songs.length
+  const isFirstVisit = songs.length === 0;
+  document.querySelector("#empty-title").textContent = isFirstVisit ? "Vamos montar seu repertório?" : "Ainda não encontramos essa combinação";
+  document.querySelector("#empty-message").textContent = !isFirstVisit
     ? "Tente tirar um acorde da seleção ou buscar por outro termo."
-    : "Importe uma cifra ou crie uma nova para começar seu repertório.";
-  document.querySelector("#reset-filters").textContent = songs.length ? "Ver todas as músicas" : "Criar ou importar cifra";
+    : "Comece com uma cifra sua. Ela fica salva neste navegador.";
+  document.querySelector("#empty-onboarding").hidden = !isFirstVisit;
+  document.querySelector("#reset-filters").hidden = isFirstVisit;
+  document.querySelector("#reset-filters").textContent = "Ver todas as músicas";
   activeFilters.replaceChildren();
   for (const chord of selectedChords) {
     const badge = document.createElement("span");
@@ -321,20 +350,30 @@ function render() {
 }
 
 document.querySelector("#clear-chords").addEventListener("click", () => {
-  selectedChords.clear();
+  try {
+    commitAppData(() => selectedChords.clear());
+  } catch {
+    render();
+    return;
+  }
   render();
 });
 document.querySelector("#reset-filters").addEventListener("click", () => {
-  if (!songs.length) {
-    document.querySelector("#editor").scrollIntoView({ behavior: "smooth", block: "start" });
-    document.querySelector("#new-song").focus({ preventScroll: true });
+  try {
+    commitAppData(() => selectedChords.clear());
+  } catch {
+    render();
     return;
   }
-  selectedChords.clear();
   searchInput.value = "";
   favoritesOnly.checked = false;
-  savePreferences();
   render();
+});
+document.querySelector("#empty-new-song").addEventListener("click", () => {
+  document.querySelector("#new-song").click();
+});
+document.querySelector("#empty-import").addEventListener("click", () => {
+  document.querySelector("#import-project").click();
 });
 searchInput.addEventListener("input", render);
 sortSelect.addEventListener("change", render);
@@ -348,31 +387,6 @@ const lyricsInput = document.querySelector("#song-lyrics");
 const lyricsPreview = document.querySelector("#lyrics-preview");
 const saveStatus = document.querySelector("#save-status");
 let saveTimeout;
-
-function transposePitch(pitch, steps) {
-  const pitchIndexes = { C: 0, "B#": 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4, Fb: 4, "E#": 5, F: 5, "F#": 6, Gb: 6, G: 7, "G#": 8, Ab: 8, A: 9, "A#": 10, Bb: 10, B: 11, Cb: 11 };
-  const index = pitchIndexes[pitch];
-  return index === undefined ? pitch : pitchClasses[(index + steps % 12 + 12) % 12];
-}
-
-function normalizeChordFamily(chord) {
-  const match = chord.match(/^([A-G](?:#|b)?)(.*)$/);
-  if (!match) return chord;
-  const suffix = match[2].replace(/\/.*$/, "");
-  const isMinor = /^(?:m(?!aj)|min)/i.test(suffix);
-  return `${transposePitch(match[1], 0)}${isMinor ? "m" : ""}`;
-}
-
-function transposeChord(chord, steps) {
-  if (!steps) return chord;
-  const match = chord.match(/^([A-G](?:#|b)?)(.*?)(?:\/([A-G](?:#|b)?)(.*))?$/);
-  if (!match) return chord;
-  return `${transposePitch(match[1], steps)}${match[2]}${match[3] ? `/${transposePitch(match[3], steps)}${match[4]}` : ""}`;
-}
-
-function getChordsFromLyrics(lyrics) {
-  return [...new Set([...lyrics.matchAll(/\[([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|[0-9+#b]*)?(?:\/[A-G](?:#|b)?)?)\]/g)].map((match) => match[1]))];
-}
 
 const readerPreview = document.querySelector("#reader-preview");
 const readerOverlay = document.querySelector("#reader-overlay");
@@ -466,23 +480,12 @@ function updateTransposeLabel() {
   document.querySelector("#transpose-label").textContent = label;
 }
 
-function storeCustomSongs() {
-  const customSongs = songs.filter((song) => song.custom);
-  try {
-    localStorage.setItem("toca-leve-songs", JSON.stringify(customSongs));
-    saveStatus.textContent = "Salvo neste dispositivo";
-    saveStatus.classList.remove("save-error");
-    return true;
-  } catch (error) {
-    console.error("Não foi possível salvar as cifras neste dispositivo.", error);
-    saveStatus.textContent = "Não foi possível salvar. Exporte o projeto como cópia.";
-    saveStatus.classList.add("save-error");
-    return false;
-  }
-}
-
 function saveCurrentSong() {
-  if (!currentSongId || !songTitleInput.value.trim()) return;
+  if (!currentSongId) return;
+  if (!songTitleInput.value.trim()) {
+    saveStatus.textContent = "Informe um título para salvar esta cifra.";
+    return;
+  }
   const title = songTitleInput.value.trim();
   const customSong = {
     id: currentSongId,
@@ -496,17 +499,21 @@ function saveCurrentSong() {
     lyrics: lyricsInput.value,
     custom: true
   };
-  const existingIndex = songs.findIndex((song) => song.id === currentSongId);
-  if (existingIndex >= 0) songs[existingIndex] = customSong;
-  else {
-    songs.push(customSong);
-    songOrder.push(customSong.id);
+  try {
+    commitAppData(() => {
+      const existingIndex = songs.findIndex((song) => song.id === currentSongId);
+      if (existingIndex >= 0) songs[existingIndex] = customSong;
+      else {
+        songs.push(customSong);
+        songOrder.push(customSong.id);
+      }
+      for (const playlist of playlists) {
+        playlist.songIds = playlist.songIds.filter((id) => songs.some((song) => song.id === id));
+      }
+    });
+  } catch {
+    return;
   }
-  for (const playlist of playlists) {
-    playlist.songIds = playlist.songIds.filter((id) => songs.some((song) => song.id === id));
-  }
-  savePlaylists();
-  storeCustomSongs();
   render();
 }
 
@@ -731,41 +738,26 @@ function showImportPreview(songsToImport, backup = null) {
   importPreview.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function parseImportedSong(song, fallbackTitle) {
-  const title = song.title || song.titulo || song.name || fallbackTitle;
-  const lyrics = song.lyrics || song.letter || song.letra || song.lyricsText || song.cifra || song.text || "";
-  if (typeof title !== "string" || typeof lyrics !== "string") return null;
-  return {
-    id: typeof song.id === "string" ? song.id : crypto.randomUUID(),
-    title,
-    artist: song.artist || song.author || song.autor || song.artista || "",
-    key: song.key || song.tom || "C",
-    tempo: Number(song.tempo || song.bpm) || 90,
-    lyrics,
-    style: "Minha cifra",
-    chords: getChordsFromLyrics(lyrics),
-    difficulty: 2,
-    custom: true
-  };
-}
-
 async function handleImportFile(file) {
   if (!file) return;
   try {
-    const contents = await file.text();
     if (file.size > 10 * 1024 * 1024) throw new Error("O arquivo de cifra deve ter até 10 MB.");
+    const contents = await file.text();
     if (/\.(txt|cho|pro|chordpro)$/i.test(file.name)) {
       showImportPreview([parseChordText(contents, file.name.replace(/\.[^.]+$/, ""))]);
       return;
     }
     const data = JSON.parse(contents);
-    if (data.format === "toque-facil-backup" && Array.isArray(data.songs)) {
+    if (data?.format === "toque-facil-backup" && Array.isArray(data.songs)) {
       const imported = data.songs.map((song) => parseImportedSong(song, "Cifra importada")).filter(Boolean);
       if (!imported.length && data.songs.length) throw new Error("O backup não contém cifras válidas.");
       showImportPreview(imported, data);
       return;
     }
-    const candidates = Array.isArray(data) ? data : Array.isArray(data.songs) ? data.songs : data.song ? [data.song] : [data];
+    const candidates = Array.isArray(data) ? data
+      : data && typeof data === "object" && Array.isArray(data.songs) ? data.songs
+        : data && typeof data === "object" && data.song ? [data.song]
+          : data && typeof data === "object" ? [data] : [];
     const imported = candidates.map((song) => parseImportedSong(song, file.name.replace(/\.[^.]+$/, ""))).filter(Boolean);
     if (!imported.length) throw new Error("O arquivo não contém cifras compatíveis.");
     showImportPreview(imported);
@@ -788,18 +780,88 @@ document.querySelector("#cancel-import").addEventListener("click", () => {
   importPreviewList.replaceChildren();
 });
 
+function getAppDataSnapshot() {
+  return {
+    songs: songs.filter((song) => song.custom),
+    playlists,
+    songOrder,
+    favorites: [...favoriteSongs],
+    preferences: {
+      ...preferences,
+      chords: [...selectedChords],
+      referenceA: Number(document.querySelector("#reference-a").value),
+      metronomeBpm: Number(metronomeSlider.value)
+    }
+  };
+}
+
+function reportSaveError(error) {
+  console.error("Não foi possível salvar os dados neste dispositivo.", error);
+  saveStatus.textContent = "Não foi possível salvar neste dispositivo. Suas alterações não foram confirmadas; copie-as antes de sair.";
+  saveStatus.classList.add("save-error");
+}
+
 function persistAppData() {
-  savePlaylists();
-  saveFavorites();
-  savePreferences();
-  storeCustomSongs();
+  if (storedStateLoadError) {
+    throw new Error("Os dados salvos não puderam ser lidos. Eles foram preservados; exporte um backup antes de tentar novamente.");
+  }
+  const state = getAppDataSnapshot();
+  writeAppState(localStorage, state);
+  storedAppState = { format: "toque-facil-app-data", version: 1, ...state };
+  saveStatus.textContent = "Salvo neste dispositivo";
+  saveStatus.classList.remove("save-error");
+}
+
+function saveAppDataWithFeedback() {
+  try {
+    persistAppData();
+    return true;
+  } catch (error) {
+    reportSaveError(error);
+    return false;
+  }
+}
+
+function captureMutableAppData() {
+  return {
+    songs: songs.map((song) => ({ ...song, chords: Array.isArray(song.chords) ? [...song.chords] : [] })),
+    playlists: playlists.map((playlist) => ({ ...playlist, songIds: Array.isArray(playlist.songIds) ? [...playlist.songIds] : [] })),
+    songOrder: [...songOrder],
+    favorites: [...favoriteSongs],
+    chords: [...selectedChords],
+    preferences: { ...preferences }
+  };
+}
+
+function restoreMutableAppData(previous) {
+  songs = previous.songs;
+  playlists = previous.playlists;
+  songOrder = previous.songOrder;
+  favoriteSongs.clear();
+  for (const id of previous.favorites) favoriteSongs.add(id);
+  selectedChords.clear();
+  for (const chord of previous.chords) selectedChords.add(chord);
+  for (const key of Object.keys(preferences)) delete preferences[key];
+  Object.assign(preferences, previous.preferences);
+  referenceAInput.value = String(previous.preferences.referenceA || 440);
+  metronomeSlider.value = String(previous.preferences.metronomeBpm || 90);
+  metronomeValue.textContent = metronomeSlider.value;
+}
+
+function commitAppData(update) {
+  const previous = captureMutableAppData();
+  try {
+    update();
+    persistAppData();
+  } catch (error) {
+    restoreMutableAppData(previous);
+    reportSaveError(error);
+    throw error;
+  }
 }
 
 function restoreBackup(backup, replace) {
-  if (!Array.isArray(backup.songs) || !Array.isArray(backup.playlists)
-    || (backup.favorites !== undefined && !Array.isArray(backup.favorites))) {
-    throw new Error("Backup incompleto ou inválido.");
-  }
+  validateBackup(backup);
   const backupFavorites = Array.isArray(backup.favorites) ? backup.favorites : [];
   if (replace) {
     songs = backup.songs.map((song) => parseImportedSong(song, "Cifra importada")).filter(Boolean);
@@ -832,50 +894,25 @@ function restoreBackup(backup, replace) {
       selectedChords.clear();
     }
   } else {
-    const idMap = new Map();
-    for (const source of backup.songs) {
-      const existing = songs.find((song) => song.title.toLocaleLowerCase("pt-BR") === String(source.title || "").toLocaleLowerCase("pt-BR")
-        && song.artist.toLocaleLowerCase("pt-BR") === String(source.artist || "").toLocaleLowerCase("pt-BR"));
-      const imported = parseImportedSong(source, "Cifra importada");
-      if (!imported) continue;
-      if (existing) idMap.set(source.id, existing.id);
-      else {
-        songs.push(imported);
-        songOrder.push(imported.id);
-        idMap.set(source.id, imported.id);
-      }
-    }
-    for (const source of backup.playlists) {
-      if (!source || typeof source.name !== "string" || !Array.isArray(source.songIds)) continue;
-      let target = playlists.find((playlist) => playlist.name.toLocaleLowerCase("pt-BR") === source.name.toLocaleLowerCase("pt-BR"));
-      if (!target) {
-        target = { id: crypto.randomUUID(), name: source.name, songIds: [] };
-        playlists.push(target);
-      }
-      target.songIds = [...new Set([...target.songIds, ...source.songIds.map((id) => idMap.get(id)).filter(Boolean)])];
-    }
-    for (const id of backupFavorites) {
-      const mapped = idMap.get(id);
-      if (mapped) favoriteSongs.add(mapped);
-    }
+    const merged = mergeBackupData(backup, { songs, playlists, songOrder, favorites: [...favoriteSongs] });
+    songs = merged.songs;
+    playlists = merged.playlists;
+    songOrder = merged.songOrder;
+    favoriteSongs.clear();
+    for (const id of merged.favorites) favoriteSongs.add(id);
   }
   playlists = playlists.map((playlist) => ({
     ...playlist,
     songIds: playlist.songIds.filter((id) => songs.some((song) => song.id === id))
   }));
   songOrder = [...songOrder.filter((id) => songs.some((song) => song.id === id)), ...songs.map((song) => song.id).filter((id) => !songOrder.includes(id))];
-  persistAppData();
-  searchInput.value = "";
-  favoritesOnly.checked = false;
-  document.querySelector("#playlist-filter").value = "all";
-  render();
 }
 
 document.querySelector("#confirm-import").addEventListener("click", () => {
   if (!pendingImport) return;
   try {
     if (pendingImport.backup) {
-      restoreBackup(pendingImport.backup, replaceBackupInput.checked);
+      commitAppData(() => restoreBackup(pendingImport.backup, replaceBackupInput.checked));
     } else {
       const items = [...importPreviewList.querySelectorAll(".import-preview-song")];
       const imported = pendingImport.songs.map((song, index) => {
@@ -896,40 +933,31 @@ document.querySelector("#confirm-import").addEventListener("click", () => {
           custom: true
         };
       });
-      songs.push(...imported);
-      songOrder.push(...imported.map((song) => song.id));
-      persistAppData();
-      selectedChords.clear();
-      searchInput.value = "";
-      favoritesOnly.checked = false;
-      render();
+      commitAppData(() => {
+        songs.push(...imported);
+        songOrder.push(...imported.map((song) => song.id));
+        selectedChords.clear();
+      });
       if (imported[0]) openSong(imported[0]);
     }
+    searchInput.value = "";
+    favoritesOnly.checked = false;
+    document.querySelector("#playlist-filter").value = "all";
+    render();
     saveStatus.textContent = "Importação concluída.";
     pendingImport = undefined;
     importPreview.hidden = true;
     importPreviewList.replaceChildren();
   } catch (error) {
     console.error("Falha ao concluir a importação.", error);
+    saveStatus.textContent = `Não foi possível concluir a importação: ${error.message}`;
+    saveStatus.classList.add("save-error");
     importPreviewSummary.textContent = error.message;
   }
 });
 
 document.querySelector("#backup-data").addEventListener("click", () => {
-  const backup = {
-    format: "toque-facil-backup",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    songs,
-    playlists,
-    songOrder,
-    favorites: [...favoriteSongs],
-    preferences: {
-      chords: [...selectedChords],
-      referenceA: Number(document.querySelector("#reference-a").value),
-      metronomeBpm: Number(metronomeSlider.value)
-    }
-  };
+  const backup = createBackup(getAppDataSnapshot());
   downloadFile("backup-completo-toque-facil.json", JSON.stringify(backup, null, 2), "application/json");
 });
 
@@ -1311,17 +1339,23 @@ for (const button of document.querySelectorAll(".beat-options button")) {
     metronomeBeatsPerBar = Number(button.dataset.beats);
     for (const option of document.querySelectorAll(".beat-options button")) option.classList.toggle("selected", option === button);
     beatIndicator.replaceChildren(...Array.from({ length: metronomeBeatsPerBar }, () => document.createElement("span")));
+    if (metronomeTimer) restartMetronome(true);
   });
 }
 
-function playMetronomeBeat() {
+function getMetronomePattern() {
   const rhythmId = document.querySelector("#rhythm-pattern").value;
   const patterns = {
     basic: Array(metronomeBeatsPerBar).fill("down"),
     pop: ["down", "", "down", "up", "", "up", "down", "up"].slice(0, metronomeBeatsPerBar * 2),
     ballad: ["down", "", "", "down", "up", "", "", "up", "down", "up"].slice(0, metronomeBeatsPerBar * 2)
   };
-  const pattern = patterns[rhythmId];
+  return patterns[rhythmId];
+}
+
+function playMetronomeBeat(time, run) {
+  if (!metronomeContext || run !== metronomeRun) return;
+  const pattern = getMetronomePattern();
   const step = metronomeBeat % pattern.length;
   const stroke = pattern[step];
   const beat = Math.floor(step * metronomeBeatsPerBar / pattern.length);
@@ -1330,57 +1364,82 @@ function playMetronomeBeat() {
     const gain = metronomeContext.createGain();
     oscillator.type = "triangle";
     oscillator.frequency.value = stroke === "down" ? (beat === 0 ? 520 : 390) : 300;
-    gain.gain.setValueAtTime(0.09, metronomeContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, metronomeContext.currentTime + 0.07);
+    gain.gain.setValueAtTime(0.09, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
     oscillator.connect(gain);
     gain.connect(metronomeContext.destination);
-    oscillator.start();
-    oscillator.stop(metronomeContext.currentTime + 0.075);
+    oscillator.start(time);
+    oscillator.stop(time + 0.075);
   }
-  const indicators = [...beatIndicator.children];
-  indicators.forEach((item, index) => {
-    item.classList.toggle("active", index === beat);
-    item.textContent = index === beat ? (stroke === "down" ? "↓" : stroke === "up" ? "↑" : "·") : "";
-  });
+  const delay = Math.max(0, (time - metronomeContext.currentTime) * 1000);
+  setTimeout(() => {
+    if (run !== metronomeRun) return;
+    const indicators = [...beatIndicator.children];
+    indicators.forEach((item, index) => {
+      item.classList.toggle("active", index === beat);
+      item.textContent = index === beat ? (stroke === "down" ? "↓" : stroke === "up" ? "↑" : "·") : "";
+    });
+  }, delay);
   metronomeBeat++;
 }
 
 function startMetronome() {
-  const patternId = document.querySelector("#rhythm-pattern").value;
-  const totalSteps = patternId === "basic" ? metronomeBeatsPerBar : metronomeBeatsPerBar * 2;
-  const interval = 60000 / Number(metronomeSlider.value) * metronomeBeatsPerBar / totalSteps;
-  metronomeTimer = setInterval(playMetronomeBeat, interval);
+  const run = metronomeRun;
+  let nextNoteTime = metronomeContext.currentTime + 0.05;
+  const scheduleAhead = () => {
+    const pattern = getMetronomePattern();
+    const interval = 60 / Number(metronomeSlider.value) * metronomeBeatsPerBar / pattern.length;
+    while (nextNoteTime < metronomeContext.currentTime + 0.1) {
+      playMetronomeBeat(nextNoteTime, run);
+      nextNoteTime += interval;
+    }
+  };
+  scheduleAhead();
+  metronomeTimer = setInterval(scheduleAhead, 25);
+}
+
+function restartMetronome(resetBeat = false) {
+  if (!metronomeTimer) return;
+  clearInterval(metronomeTimer);
+  metronomeTimer = undefined;
+  metronomeRun++;
+  if (resetBeat) metronomeBeat = 0;
+  startMetronome();
 }
 
 metronomeToggle.addEventListener("click", async () => {
   if (metronomeTimer) {
     clearInterval(metronomeTimer);
     metronomeTimer = undefined;
+    metronomeRun++;
     if (metronomeContext && metronomeContext.state !== "closed") await metronomeContext.close();
+    metronomeContext = undefined;
     metronomeToggle.textContent = "▶ Iniciar exercício";
     beatIndicator.querySelectorAll("span").forEach((item) => item.classList.remove("active"));
     return;
   }
-  metronomeContext = new AudioContext();
-  await metronomeContext.resume();
-  metronomeBeat = 0;
-  playMetronomeBeat();
-  startMetronome();
-  metronomeToggle.textContent = "■ Parar exercício";
+  metronomeToggle.disabled = true;
+  try {
+    metronomeContext = new AudioContext();
+    await metronomeContext.resume();
+    metronomeBeat = 0;
+    metronomeRun++;
+    startMetronome();
+    metronomeToggle.textContent = "■ Parar exercício";
+  } catch (error) {
+    console.error("Não foi possível iniciar o metrônomo.", error);
+    if (metronomeContext && metronomeContext.state !== "closed") await metronomeContext.close();
+    metronomeContext = undefined;
+    audioStatus.textContent = "Não foi possível iniciar o metrônomo. Confira o áudio do navegador e tente novamente.";
+  } finally {
+    metronomeToggle.disabled = false;
+  }
 });
 document.querySelector("#rhythm-pattern").addEventListener("change", () => {
-  if (metronomeTimer) {
-    clearInterval(metronomeTimer);
-    metronomeBeat = 0;
-    playMetronomeBeat();
-    startMetronome();
-  }
+  if (metronomeTimer) restartMetronome(true);
 });
 metronomeSlider.addEventListener("change", () => {
-  if (metronomeTimer) {
-    clearInterval(metronomeTimer);
-    startMetronome();
-  }
+  if (metronomeTimer) restartMetronome();
 });
 
 const referenceAInput = document.querySelector("#reference-a");
@@ -1400,7 +1459,49 @@ window.addEventListener("beforeinstallprompt", (event) => {
   document.querySelector("#install-app").hidden = false;
 });
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  navigator.serviceWorker.register("./service-worker.js").catch((error) => console.error("Não foi possível ativar o modo offline.", error));
+  const updateNotice = document.querySelector("#app-update");
+  const updateButton = document.querySelector("#apply-app-update");
+  let updateRegistration;
+  let applyUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (applyUpdate) location.reload();
+  });
+  const showUpdateNotice = () => {
+    if (navigator.serviceWorker.controller && updateRegistration?.waiting) updateNotice.hidden = false;
+  };
+  navigator.serviceWorker.register("./service-worker.js").then((registration) => {
+    updateRegistration = registration;
+    showUpdateNotice();
+    registration.addEventListener("updatefound", () => {
+      const installing = registration.installing;
+      installing?.addEventListener("statechange", () => {
+        if (installing.state === "installed") showUpdateNotice();
+      });
+    });
+    window.setInterval(() => {
+      registration.update().catch((error) => console.error("Não foi possível verificar atualizações do app.", error));
+    }, 60 * 60 * 1000);
+  }).catch((error) => console.error("Não foi possível ativar o modo offline.", error));
+  updateButton.addEventListener("click", () => {
+    if (!updateRegistration?.waiting) return;
+    const hasDraft = Boolean(songTitleInput.value.trim() || songAuthorInput.value.trim() || lyricsInput.value.trim());
+    if (!songTitleInput.value.trim() && hasDraft
+      && !window.confirm("O rascunho sem título não pode ser salvo. Atualizar e descartá-lo?")) return;
+    clearTimeout(saveTimeout);
+    if (songTitleInput.value.trim()) {
+      saveCurrentSong();
+      if (saveStatus.classList.contains("save-error")) return;
+    } else {
+      try {
+        persistAppData();
+      } catch (error) {
+        reportSaveError(error);
+        return;
+      }
+    }
+    applyUpdate = true;
+    updateRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+  });
 }
 
 const noteNames = ["Dó", "Dó♯", "Ré", "Ré♯", "Mi", "Fá", "Fá♯", "Sol", "Sol♯", "Lá", "Lá♯", "Si"];
@@ -1549,9 +1650,11 @@ window.addEventListener("pagehide", () => {
   if (mediaStream) for (const track of mediaStream.getTracks()) track.stop();
   if (audioContext && audioContext.state !== "closed") void audioContext.close();
   if (metronomeTimer) clearInterval(metronomeTimer);
+  metronomeRun++;
   if (metronomeContext && metronomeContext.state !== "closed") void metronomeContext.close();
   if (audioUrl) URL.revokeObjectURL(audioUrl);
 });
 
 newSong();
 render();
+if (storedStateLoadError) reportSaveError(storedStateLoadError);
