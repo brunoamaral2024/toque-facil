@@ -24,6 +24,7 @@
       <nav class="nav-links" aria-label="Navegação principal">
         <a href="#repertorio">Repertório</a>
         <a href="#editor">Editor</a>
+        <a href="#trilha">Prática</a>
         <a href="#ritmo">Ritmo</a>
         <a href="#afinador">Afinador</a>
       </nav>
@@ -76,6 +77,7 @@
           </label>
           <button class="tool-button" id="create-playlist" type="button">＋ Nova lista</button>
           <button class="tool-button" id="delete-playlist" type="button" disabled>Excluir lista</button>
+          <button class="tool-button tool-primary" id="start-stage" type="button" title="Selecione uma lista com músicas para iniciar a apresentação" disabled>▶ Modo palco</button>
           <span id="playlist-count" aria-live="polite"></span>
         </div>
         <div class="catalog-layout">
@@ -90,6 +92,17 @@
           </aside>
 
           <div class="songs-area">
+            <div class="catalog-browse" role="group" aria-label="Organizar músicas por quantidade de acordes">
+              <button type="button" class="catalog-group selected" data-chord-group="all" aria-pressed="true">Todas <span id="group-count-all">0</span></button>
+              <button type="button" class="catalog-group" data-chord-group="3" aria-pressed="false">3 acordes <span id="group-count-3">0</span></button>
+              <button type="button" class="catalog-group" data-chord-group="4" aria-pressed="false">4 acordes <span id="group-count-4">0</span></button>
+              <button type="button" class="catalog-group" data-chord-group="5+" aria-pressed="false">5+ acordes <span id="group-count-5plus">0</span></button>
+            </div>
+            <label class="favorites-toggle known-chords-toggle">
+              <input id="strict-chords-only" type="checkbox">
+              <span class="toggle-track"></span>
+              <span>Só músicas com acordes que conheço</span>
+            </label>
             <div class="search-row">
               <label class="search-box">
                 <span aria-hidden="true">⌕</span>
@@ -112,21 +125,36 @@
               <h3 id="empty-title">Seu repertório está vazio</h3>
               <p id="empty-message">Importe uma cifra ou crie uma nova para começar seu repertório.</p>
               <div class="empty-onboarding" id="empty-onboarding">
-                <ol>
-                  <li>Crie sua primeira cifra ou importe um arquivo.</li>
-                  <li>Marque os acordes que você já conhece para filtrar o repertório.</li>
-                  <li>Faça backups para levar suas cifras para outro dispositivo.</li>
+                <p class="onboarding-progress" id="onboarding-progress" aria-live="polite"></p>
+                <ol class="onboarding-steps">
+                  <li><strong>Escolha acordes que você já sabe.</strong><span>Comece por C, G, D e Am; depois ajuste a seleção.</span></li>
+                  <li><strong>Adicione uma cifra autorizada.</strong><span>Crie, cole ou importe um arquivo seu.</span></li>
+                  <li><strong>Filtre e toque.</strong><span>Ative o filtro estrito ou comece uma sessão de prática.</span></li>
                 </ol>
                 <div class="empty-onboarding-actions">
+                  <button class="tool-button" id="onboarding-chords" type="button">Selecionar acordes iniciais</button>
                   <button class="tool-button tool-primary" id="empty-new-song" type="button">＋ Criar primeira cifra</button>
                   <button class="tool-button" id="empty-import" type="button">Importar cifra</button>
+                  <button class="tool-button" id="onboarding-practice" type="button">Abrir trilha de prática</button>
                 </div>
-                <p class="storage-note">Suas cifras ficam neste navegador e neste dispositivo. Para acessá-las em outro aparelho, use o backup completo e restaure-o nele.</p>
+                <p class="storage-note">O catálogo começa vazio para você adicionar cifras próprias ou autorizadas. Elas ficam neste dispositivo; use o backup completo para transferi-las.</p>
               </div>
               <button class="text-button" id="reset-filters" type="button">Criar ou importar cifra</button>
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="practice-section section-wrap" id="trilha">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">UM PASSO DE CADA VEZ</div>
+            <h2>Trilha de prática · 7 dias</h2>
+            <p>Exercícios originais de técnica e ritmo, sem músicas ou letras de terceiros. Faça no seu tempo.</p>
+          </div>
+          <div class="practice-progress"><strong id="practice-progress-count">0/7</strong><span>dias concluídos</span></div>
+        </div>
+        <div class="practice-days" id="practice-days"></div>
       </section>
 
       <section class="editor-section section-wrap" id="editor">
@@ -301,6 +329,21 @@
         </div>
       </section>
     </main>
+
+    <div class="stage-overlay" id="stage-overlay" role="dialog" aria-modal="true" aria-labelledby="stage-title" hidden>
+      <header class="stage-toolbar">
+        <div><span class="eyebrow">MODO PALCO</span><h2 id="stage-title">Sua sessão</h2><p id="stage-song-meta"></p></div>
+        <div class="stage-toolbar-actions">
+          <span id="stage-counter" aria-live="polite"></span>
+          <button class="tool-button" id="stage-close" type="button">Fechar ✕</button>
+        </div>
+      </header>
+      <main class="stage-content" id="stage-content" tabindex="0" aria-label="Cifra atual"></main>
+      <footer class="stage-controls">
+        <button class="tool-button" id="stage-previous" type="button">← Anterior</button>
+        <button class="tool-button tool-primary" id="stage-next" type="button">Próxima →</button>
+      </footer>
+    </div>
 
     <div class="app-update" id="app-update" role="status" hidden>
       <span>Uma nova versão do Toque Fácil está pronta.</span>

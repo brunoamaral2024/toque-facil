@@ -28,6 +28,9 @@ O fluxo do GitHub Pages executa os mesmos testes antes de publicar o app.
 - Editor de cifras no formato ChordPro: coloque os acordes entre colchetes junto à letra, por exemplo, `[C]uma linha [G]de exemplo`.
 - Colagem de cifras com acordes em linhas separadas, conversão sugerida para ChordPro e revisão no editor antes de salvar.
 - Organização em listas, filtros, busca, favoritas e reordenação manual do repertório.
+- Categorias por 3, 4 e 5+ acordes, calculadas a partir das cifras adicionadas pelo usuário, e filtro opcional que exclui acordes ainda não selecionados.
+- Modo de apresentação em tela cheia para uma lista, com cifra simplificada, navegação anterior/próxima e atalhos pelas setas do teclado.
+- Trilha original de prática de 7 etapas, com marcação de progresso salva localmente e atalhos para preparar o metrônomo.
 - Modo de leitura em tela cheia, com ajuste de fonte e rolagem automática configurável.
 - Transposição por semitom, metadados de tom/BPM, pré-visualização e impressão/Salvar como PDF.
 - Importação de projetos JSON e cifras `.txt`, `.cho`, `.pro` ou `.chordpro`, com prévia editável; também aceita arrastar arquivos para a área de importação.
@@ -37,7 +40,7 @@ O fluxo do GitHub Pages executa os mesmos testes antes de publicar o app.
 - Sugestões experimentais de acordes por análise local do trecho de áudio; os marcadores de tempo permitem ouvir cada sugestão. São estimativas, não uma transcrição garantida; confirme os resultados antes de usar.
 - Exercícios de ritmo com padrões de batida e metrônomo ajustável.
 - Afinador cromático com calibração de Lá₄ entre 432 e 446 Hz.
-- Orientação inicial para criar ou importar a primeira cifra e explicação sobre backups entre dispositivos.
+- Começo guiado para selecionar acordes iniciais, criar ou importar uma cifra e iniciar a prática.
 - Preferências, cifras pessoais e favoritos salvos no navegador.
 - PWA com cache offline e aviso para aplicar atualizações quando uma nova versão estiver pronta.
 

@@ -209,6 +209,44 @@ body.reader-open { overflow: hidden; }
 .preview-chord-part strong { min-height: 1.4em; color: var(--green); font-size: 10px; line-height: 1.2; }
 .preview-lyric-part { align-self: end; }
 .editor-lower-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; margin-top: 17px; }
+.catalog-browse { display: flex; gap: 7px; margin-bottom: 12px; overflow-x: auto; }
+.catalog-group { min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 20px; background: white; color: #565a51; cursor: pointer; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.catalog-group span { margin-left: 4px; color: var(--muted); font-weight: 500; }
+.catalog-group.selected { border-color: var(--green); background: var(--green); color: white; }
+.catalog-group.selected span { color: #dce8df; }
+.known-chords-toggle { margin: 0 0 12px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: #fbfaf6; }
+.empty-onboarding .onboarding-progress { margin: 0 0 10px; color: var(--green); font-size: 10px; font-weight: 700; }
+.empty-onboarding .onboarding-steps { display: grid; gap: 12px; margin: 0; padding-left: 21px; }
+.onboarding-steps li strong, .onboarding-steps li span { display: block; }
+.onboarding-steps li strong { font-size: 11px; }
+.onboarding-steps li span { margin-top: 2px; color: var(--muted); font-size: 10px; }
+.empty-onboarding-actions { display: grid; grid-template-columns: 1fr 1fr; }
+.practice-section { background: var(--paper); }
+.practice-section .section-heading { align-items: center; }
+.practice-progress { display: grid; justify-items: end; gap: 2px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.practice-progress strong { color: var(--green); font: 700 24px Manrope, sans-serif; }
+.practice-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.practice-day { display: flex; flex-direction: column; min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); }
+.practice-day.completed { border-color: #9fb8a3; background: #f5f8f2; }
+.practice-day-heading { display: flex; align-items: center; gap: 9px; }
+.practice-day-number { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: var(--green-pale); color: var(--green); font: 700 11px Manrope, sans-serif; }
+.practice-day h3 { margin: 0; font: 700 14px Manrope, sans-serif; }
+.practice-day > p { min-height: 75px; margin: 13px 0; color: #66695f; font-size: 11px; line-height: 1.65; }
+.practice-day-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.practice-day-actions .text-button { font-size: 10px; }
+.practice-day-actions .tool-button { padding: 0 8px; font-size: 9px; }
+.stage-overlay { position: fixed; z-index: 40; inset: 0; display: flex; flex-direction: column; padding: clamp(14px, 3vw, 34px); background: #fbfaf6; }
+.stage-overlay[hidden] { display: none; }
+.stage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.stage-toolbar h2 { margin: 5px 0 3px; color: var(--green-dark); font: 700 clamp(20px, 3vw, 30px) Manrope, sans-serif; }
+.stage-toolbar p { margin: 0; color: var(--muted); font-size: 11px; }
+.stage-toolbar-actions { display: flex; align-items: center; gap: 12px; }
+.stage-toolbar-actions > span { color: var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.stage-content { width: min(100%, 1050px); flex: 1; align-self: center; margin: 12px auto; padding: clamp(15px, 4vw, 42px); overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: white; color: #30342e; font-size: clamp(20px, 3.2vw, 34px); line-height: 2.25; white-space: pre-wrap; }
+.stage-content .preview-line { min-height: 2em; }
+.stage-content .preview-chord-part strong { color: var(--green); font-size: .58em; }
+.stage-controls { display: flex; justify-content: space-between; gap: 12px; }
+body.stage-open { overflow: hidden; }
 .tool-card { padding: 18px; }
 .tool-card-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .tool-icon { width: 34px; height: 34px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 9px; background: var(--green-pale); color: var(--green); font-size: 17px; }
@@ -293,6 +331,7 @@ body.reader-open { overflow: hidden; }
   .editor-toolbar { gap: 6px; }
   .save-status { width: 100%; margin-left: 0; }
   .tuner-section { padding-right: 7vw; padding-left: 7vw; }
+  .practice-days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
   .topbar { height: 64px; padding: 0 20px; }
@@ -324,6 +363,14 @@ body.reader-open { overflow: hidden; }
   .filter-divider { margin: 14px 0; }
   .filter-panel > .text-button { margin-top: 12px; }
   .song-grid { gap: 9px; }
+  .practice-days { grid-template-columns: 1fr; }
+  .practice-day > p { min-height: 0; }
+  .stage-overlay { padding: 12px; }
+  .stage-toolbar { align-items: flex-start; }
+  .stage-toolbar-actions { align-items: flex-end; flex-direction: column-reverse; gap: 6px; }
+  .stage-toolbar-actions .tool-button { min-height: 30px; }
+  .stage-content { padding: 14px; font-size: clamp(19px, 5vw, 27px); line-height: 2; }
+  .stage-controls .tool-button { min-height: 42px; }
   .song-card { padding: 12px; }
   .song-card h3 { font-size: 13px; }
   .song-artist { font-size: 9px; }

@@ -53,14 +53,53 @@ export function getChordsFromLyrics(lyrics) {
   return [...new Set([...lyrics.matchAll(/\[([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|[0-9+#b]*)?(?:\/[A-G](?:#|b)?)?)\]/g)].map((match) => match[1]))];
 }
 
-export function getVisibleSongs({ songs, selectedChords, query, playlistFilter, playlists, favoritesOnly, favoriteSongs, sort, songOrder }) {
+export function getSongChordCount(song) {
+  return new Set(Array.isArray(song?.chords) ? song.chords : []).size;
+}
+
+export function getChordGroupCounts(songs) {
+  const counts = { all: songs.length, 3: 0, 4: 0, "5+": 0 };
+  for (const song of songs) {
+    const count = getSongChordCount(song);
+    if (count === 3) counts[3]++;
+    else if (count === 4) counts[4]++;
+    else if (count >= 5) counts["5+"]++;
+  }
+  return counts;
+}
+
+function normalizeStrictChord(chord) {
+  const match = chord.match(/^([A-G](?:#|b)?)(.*)$/);
+  return match ? `${transposePitch(match[1], 0)}${match[2]}` : chord;
+}
+
+export function getVisibleSongs({
+  songs,
+  selectedChords,
+  query,
+  playlistFilter,
+  playlists,
+  favoritesOnly,
+  favoriteSongs,
+  sort,
+  songOrder,
+  strictChordsOnly = false,
+  chordGroup = "all"
+}) {
   const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+  const knownChords = new Set([...selectedChords].map(normalizeStrictChord));
   const result = songs.filter((song) => {
-    const hasEveryChord = [...selectedChords].every((chord) => song.chords.some((songChord) => normalizeChordFamily(songChord) === normalizeChordFamily(chord)));
-    const matchesQuery = !normalizedQuery || [song.title, song.artist, song.style, ...song.chords]
+    const songChords = Array.isArray(song.chords) ? song.chords : [];
+    const hasEveryChord = [...selectedChords].every((chord) => songChords.some((songChord) => normalizeChordFamily(songChord) === normalizeChordFamily(chord)));
+    const hasOnlyKnownChords = !strictChordsOnly
+      || (knownChords.size > 0 && songChords.length > 0 && songChords.every((chord) => knownChords.has(normalizeStrictChord(chord))));
+    const chordCount = getSongChordCount(song);
+    const matchesChordGroup = chordGroup === "all" || (chordGroup === "5+" ? chordCount >= 5 : chordCount === Number(chordGroup));
+    const matchesQuery = !normalizedQuery || [song.title, song.artist, song.style, ...songChords]
       .some((value) => value.toLocaleLowerCase("pt-BR").includes(normalizedQuery));
     const matchesPlaylist = playlistFilter === "all" || playlists.find((playlist) => playlist.id === playlistFilter)?.songIds.includes(song.id);
-    return hasEveryChord && matchesQuery && matchesPlaylist && (!favoritesOnly || favoriteSongs.has(song.id));
+    return hasEveryChord && hasOnlyKnownChords && matchesChordGroup && matchesQuery && matchesPlaylist
+      && (!favoritesOnly || favoriteSongs.has(song.id));
   });
 
   if (sort === "name") result.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));

@@ -1,4 +1,5 @@
 import {
+  getChordGroupCounts,
   getChordsFromLyrics,
   getVisibleSongs as filterVisibleSongs,
   createStudioProProject,
@@ -123,6 +124,13 @@ const sortSelect = document.querySelector("#sort-songs");
 const favoritesOnly = document.querySelector("#favorites-only");
 const selectedChords = new Set(Array.isArray(preferences.chords) ? preferences.chords.filter((chord) => chords.includes(chord)) : []);
 const favoriteSongs = new Set(readStoredFavorites());
+const practiceDays = new Set(Array.isArray(preferences.practiceDays)
+  ? preferences.practiceDays.filter((day) => Number.isInteger(day) && day >= 1 && day <= 7)
+  : []);
+let strictChordsOnly = preferences.strictChordsOnly === true;
+let chordGroupFilter = ["all", "3", "4", "5+"].includes(preferences.chordGroup) ? preferences.chordGroup : "all";
+let stageSongs = [];
+let stageSongIndex = 0;
 let currentTranspose = 0;
 let currentSongId = null;
 let audioFile;
@@ -191,7 +199,9 @@ function getVisibleSongs() {
     favoritesOnly: favoritesOnly.checked,
     favoriteSongs,
     sort: sortSelect.value,
-    songOrder
+    songOrder,
+    strictChordsOnly,
+    chordGroup: chordGroupFilter
   });
 }
 
@@ -307,6 +317,85 @@ function renderPlaylists() {
   document.querySelector("#playlist-count").textContent = playlists.length
     ? `${playlists.length} lista${playlists.length === 1 ? "" : "s"}`
     : "Crie listas para organizar seu repertório";
+  const stageButton = document.querySelector("#start-stage");
+  stageButton.disabled = select.value === "all"
+    || !playlists.find((playlist) => playlist.id === select.value)?.songIds.some((id) => songs.some((song) => song.id === id));
+}
+
+function renderChordGroups() {
+  const counts = getChordGroupCounts(songs);
+  document.querySelector("#group-count-all").textContent = counts.all;
+  document.querySelector("#group-count-3").textContent = counts[3];
+  document.querySelector("#group-count-4").textContent = counts[4];
+  document.querySelector("#group-count-5plus").textContent = counts["5+"];
+  for (const button of document.querySelectorAll("[data-chord-group]")) {
+    const selected = button.dataset.chordGroup === chordGroupFilter;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  }
+}
+
+const practicePlan = [
+  { day: 1, title: "Acorde limpo", description: "Escolha dois acordes que já conhece. Monte cada posição devagar e toque as cordas uma a uma, conferindo se todas soam.", bpm: 60, pattern: "basic" },
+  { day: 2, title: "Troca sem pressa", description: "Alterne entre dois acordes conhecidos. Faça quatro batidas em cada um e priorize uma troca tranquila, sem interromper o pulso.", bpm: 60, pattern: "basic" },
+  { day: 3, title: "Pulso constante", description: "Marque quatro tempos com batidas para baixo. Conte em voz alta e mantenha o mesmo espaço entre cada batida.", bpm: 65, pattern: "basic" },
+  { day: 4, title: "Mão alternada", description: "Experimente uma batida para baixo e outra para cima, primeiro sem acordes. Deixe a mão continuar o movimento mesmo quando não tocar as cordas.", bpm: 70, pattern: "pop" },
+  { day: 5, title: "Padrão pop", description: "Pratique o padrão do metrônomo no andamento confortável. Repita por alguns compassos e só aumente a velocidade se continuar relaxado.", bpm: 75, pattern: "pop" },
+  { day: 6, title: "Sequência pessoal", description: "Escolha três acordes conhecidos e crie uma sequência curta. Toque um compasso em cada acorde sem parar entre as mudanças.", bpm: 80, pattern: "basic" },
+  { day: 7, title: "Seu pequeno repertório", description: "Toque uma cifra sua do começo ao fim. Se ainda não tiver uma, repita sua sequência de acordes e celebre o que ficou mais fácil.", bpm: 80, pattern: "ballad" }
+];
+
+function renderPracticeDays() {
+  const container = document.querySelector("#practice-days");
+  container.replaceChildren(...practicePlan.map((item) => {
+    const card = document.createElement("article");
+    card.className = `practice-day${practiceDays.has(item.day) ? " completed" : ""}`;
+    const heading = document.createElement("div");
+    heading.className = "practice-day-heading";
+    const number = document.createElement("span");
+    number.className = "practice-day-number";
+    number.textContent = String(item.day).padStart(2, "0");
+    const title = document.createElement("h3");
+    title.textContent = item.title;
+    heading.append(number, title);
+    const description = document.createElement("p");
+    description.textContent = item.description;
+    const actions = document.createElement("div");
+    actions.className = "practice-day-actions";
+    const setup = document.createElement("button");
+    setup.className = "text-button";
+    setup.type = "button";
+    setup.textContent = `${item.bpm} BPM · Abrir metrônomo`;
+    setup.addEventListener("click", () => {
+      metronomeSlider.value = String(item.bpm);
+      metronomeSlider.dispatchEvent(new Event("input", { bubbles: true }));
+      document.querySelector("#rhythm-pattern").value = item.pattern;
+      document.querySelector("#ritmo").scrollIntoView({ behavior: "smooth", block: "center" });
+      metronomeToggle.focus({ preventScroll: true });
+    });
+    const complete = document.createElement("button");
+    complete.className = "tool-button";
+    complete.type = "button";
+    complete.textContent = practiceDays.has(item.day) ? "✓ Concluído" : "Marcar como feito";
+    complete.setAttribute("aria-pressed", String(practiceDays.has(item.day)));
+    complete.addEventListener("click", () => {
+      try {
+        commitAppData(() => {
+          if (practiceDays.has(item.day)) practiceDays.delete(item.day);
+          else practiceDays.add(item.day);
+          preferences.practiceDays = [...practiceDays].sort((a, b) => a - b);
+        });
+      } catch {
+        renderPracticeDays();
+        return;
+      }
+      renderPracticeDays();
+    });
+    actions.append(setup, complete);
+    card.append(heading, description, actions);
+    return card;
+  }));
+  document.querySelector("#practice-progress-count").textContent = `${practiceDays.size}/7`;
 }
 
 function moveSong(id, direction) {
@@ -328,6 +417,9 @@ function moveSong(id, direction) {
 function render() {
   renderChords();
   renderPlaylists();
+  renderChordGroups();
+  renderPracticeDays();
+  document.querySelector("#strict-chords-only").checked = strictChordsOnly;
   const visible = getVisibleSongs();
   songGrid.replaceChildren(...visible.map(createSongCard));
   songCount.textContent = visible.length;
@@ -335,10 +427,15 @@ function render() {
   songGrid.hidden = visible.length === 0;
   const isFirstVisit = songs.length === 0;
   document.querySelector("#empty-title").textContent = isFirstVisit ? "Vamos montar seu repertório?" : "Ainda não encontramos essa combinação";
-  document.querySelector("#empty-message").textContent = !isFirstVisit
-    ? "Tente tirar um acorde da seleção ou buscar por outro termo."
-    : "Comece com uma cifra sua. Ela fica salva neste navegador.";
+  document.querySelector("#empty-message").textContent = isFirstVisit
+    ? "Comece com uma cifra sua. Ela fica salva neste navegador."
+    : strictChordsOnly && !selectedChords.size
+      ? "Selecione ao menos um acorde conhecido ou desative o filtro estrito."
+      : chordGroupFilter !== "all"
+        ? `Não há músicas com ${chordGroupFilter} acordes neste recorte. Tente outra categoria ou verifique seus filtros.`
+        : "Tente tirar um acorde da seleção ou buscar por outro termo.";
   document.querySelector("#empty-onboarding").hidden = !isFirstVisit;
+  document.querySelector("#onboarding-progress").textContent = `${selectedChords.size} acorde${selectedChords.size === 1 ? "" : "s"} selecionado${selectedChords.size === 1 ? "" : "s"}`;
   document.querySelector("#reset-filters").hidden = isFirstVisit;
   document.querySelector("#reset-filters").textContent = "Ver todas as músicas";
   activeFilters.replaceChildren();
@@ -346,6 +443,18 @@ function render() {
     const badge = document.createElement("span");
     badge.className = "active-filter";
     badge.textContent = chord;
+    activeFilters.append(badge);
+  }
+  if (strictChordsOnly) {
+    const badge = document.createElement("span");
+    badge.className = "active-filter";
+    badge.textContent = selectedChords.size ? "Só acordes conhecidos" : "Selecione ao menos um acorde";
+    activeFilters.append(badge);
+  }
+  if (chordGroupFilter !== "all") {
+    const badge = document.createElement("span");
+    badge.className = "active-filter";
+    badge.textContent = chordGroupFilter === "5+" ? "5+ acordes" : `${chordGroupFilter} acordes`;
     activeFilters.append(badge);
   }
 }
@@ -361,7 +470,13 @@ document.querySelector("#clear-chords").addEventListener("click", () => {
 });
 document.querySelector("#reset-filters").addEventListener("click", () => {
   try {
-    commitAppData(() => selectedChords.clear());
+    commitAppData(() => {
+      selectedChords.clear();
+      strictChordsOnly = false;
+      chordGroupFilter = "all";
+      preferences.strictChordsOnly = false;
+      preferences.chordGroup = "all";
+    });
   } catch {
     render();
     return;
@@ -376,9 +491,50 @@ document.querySelector("#empty-new-song").addEventListener("click", () => {
 document.querySelector("#empty-import").addEventListener("click", () => {
   document.querySelector("#import-project").click();
 });
+document.querySelector("#onboarding-chords").addEventListener("click", () => {
+  try {
+    commitAppData(() => {
+      selectedChords.clear();
+      for (const chord of ["C", "G", "D", "Am"]) selectedChords.add(chord);
+    });
+  } catch {
+    render();
+    return;
+  }
+  render();
+});
+document.querySelector("#onboarding-practice").addEventListener("click", () => {
+  document.querySelector("#trilha").scrollIntoView({ behavior: "smooth", block: "start" });
+});
 searchInput.addEventListener("input", render);
 sortSelect.addEventListener("change", render);
 favoritesOnly.addEventListener("change", render);
+document.querySelector("#strict-chords-only").addEventListener("change", (event) => {
+  try {
+    commitAppData(() => {
+      strictChordsOnly = event.currentTarget.checked;
+      preferences.strictChordsOnly = strictChordsOnly;
+    });
+  } catch {
+    render();
+    return;
+  }
+  render();
+});
+document.querySelectorAll("[data-chord-group]").forEach((button) => {
+  button.addEventListener("click", () => {
+    try {
+      commitAppData(() => {
+        chordGroupFilter = button.dataset.chordGroup;
+        preferences.chordGroup = chordGroupFilter;
+      });
+    } catch {
+      render();
+      return;
+    }
+    render();
+  });
+});
 
 const songTitleInput = document.querySelector("#song-title");
 const songAuthorInput = document.querySelector("#song-author");
@@ -473,6 +629,79 @@ function closeReader() {
   document.body.classList.remove("reader-open");
   stopReaderScroll();
   document.querySelector("#open-reader").focus({ preventScroll: true });
+}
+
+function renderStageSong() {
+  const song = stageSongs[stageSongIndex];
+  if (!song) return;
+  document.querySelector("#stage-title").textContent = song.title;
+  document.querySelector("#stage-song-meta").textContent = [
+    song.artist,
+    song.key ? `Tom ${song.key}` : "",
+    song.tempo ? `${song.tempo} BPM` : "",
+    song.compasso
+  ].filter(Boolean).join(" · ");
+  document.querySelector("#stage-counter").textContent = `${stageSongIndex + 1} / ${stageSongs.length}`;
+  const content = document.querySelector("#stage-content");
+  content.replaceChildren();
+  for (const line of (song.lyrics || "").split(/\r?\n/)) {
+    const row = document.createElement("div");
+    row.className = "preview-line";
+    const parts = line.split(/(\[[A-G](?:#|b)?[^\]]*\])/g);
+    for (const part of parts) {
+      const chord = part.match(/^\[([A-G](?:#|b)?[^\]]*)\]$/);
+      if (chord) {
+        const chordPart = document.createElement("span");
+        chordPart.className = "preview-chord-part";
+        const chordName = document.createElement("strong");
+        chordName.textContent = chord[1];
+        chordPart.append(chordName);
+        row.append(chordPart);
+      } else if (part) {
+        const textPart = document.createElement("span");
+        textPart.className = "preview-lyric-part";
+        textPart.textContent = part;
+        const previous = row.lastElementChild;
+        if (previous?.classList.contains("preview-chord-part")) previous.append(textPart);
+        else row.append(textPart);
+      }
+    }
+    if (!line) row.textContent = "\u00a0";
+    content.append(row);
+  }
+  document.querySelector("#stage-previous").disabled = stageSongIndex === 0;
+  document.querySelector("#stage-next").disabled = stageSongIndex === stageSongs.length - 1;
+  content.scrollTop = 0;
+}
+
+function openStage() {
+  const playlist = playlists.find((item) => item.id === document.querySelector("#playlist-filter").value);
+  if (!playlist) return;
+  const playlistSongIds = new Set(playlist.songIds);
+  stageSongs = songOrder
+    .filter((id) => playlistSongIds.has(id))
+    .map((id) => songs.find((song) => song.id === id))
+    .filter(Boolean);
+  if (!stageSongs.length) return;
+  stageSongIndex = 0;
+  document.querySelector("#stage-overlay").hidden = false;
+  document.body.classList.add("stage-open");
+  renderStageSong();
+  document.querySelector("#stage-close").focus();
+}
+
+function closeStage() {
+  document.querySelector("#stage-overlay").hidden = true;
+  document.body.classList.remove("stage-open");
+  stageSongs = [];
+  document.querySelector("#start-stage").focus({ preventScroll: true });
+}
+
+function moveStageSong(direction) {
+  const nextIndex = stageSongIndex + direction;
+  if (nextIndex < 0 || nextIndex >= stageSongs.length) return;
+  stageSongIndex = nextIndex;
+  renderStageSong();
 }
 
 function updateTransposeLabel() {
@@ -578,6 +807,10 @@ function escapeHtml(value) {
 document.querySelector("#new-song").addEventListener("click", newSong);
 document.querySelector("#open-reader").addEventListener("click", openReader);
 document.querySelector("#close-reader").addEventListener("click", closeReader);
+document.querySelector("#start-stage").addEventListener("click", openStage);
+document.querySelector("#stage-close").addEventListener("click", closeStage);
+document.querySelector("#stage-previous").addEventListener("click", () => moveStageSong(-1));
+document.querySelector("#stage-next").addEventListener("click", () => moveStageSong(1));
 document.querySelector("#reader-scroll-toggle").addEventListener("click", toggleReaderScroll);
 document.querySelector("#reader-overlay-scroll").addEventListener("click", toggleReaderScroll);
 document.querySelector("#reader-speed").addEventListener("input", () => {
@@ -597,7 +830,28 @@ document.querySelector("#reader-overlay-font").addEventListener("input", (event)
   readerPreview.style.setProperty("--reader-font-size", `${event.target.value}px`);
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && !readerOverlay.hidden) closeReader();
+  const stageOverlay = document.querySelector("#stage-overlay");
+  if (!stageOverlay.hidden) {
+    if (event.key === "Escape") closeStage();
+    else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      moveStageSong(1);
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      moveStageSong(-1);
+    } else if (event.key === "Tab") {
+      const focusable = [...stageOverlay.querySelectorAll("button:not(:disabled), [tabindex='0']")];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  } else if (event.key === "Escape" && !readerOverlay.hidden) closeReader();
 });
 document.querySelector("#transpose-up").addEventListener("click", () => { currentTranspose++; renderLyricsPreview(); renderLyricsPreview(readerPreview); updateTransposeLabel(); });
 document.querySelector("#transpose-down").addEventListener("click", () => { currentTranspose--; renderLyricsPreview(); renderLyricsPreview(readerPreview); updateTransposeLabel(); });
@@ -819,6 +1073,9 @@ function getAppDataSnapshot() {
     preferences: {
       ...preferences,
       chords: [...selectedChords],
+      strictChordsOnly,
+      chordGroup: chordGroupFilter,
+      practiceDays: [...practiceDays].sort((a, b) => a - b),
       referenceA: Number(document.querySelector("#reference-a").value),
       metronomeBpm: Number(metronomeSlider.value)
     }
@@ -859,6 +1116,9 @@ function captureMutableAppData() {
     songOrder: [...songOrder],
     favorites: [...favoriteSongs],
     chords: [...selectedChords],
+    practiceDays: [...practiceDays],
+    strictChordsOnly,
+    chordGroupFilter,
     preferences: { ...preferences }
   };
 }
@@ -871,6 +1131,11 @@ function restoreMutableAppData(previous) {
   for (const id of previous.favorites) favoriteSongs.add(id);
   selectedChords.clear();
   for (const chord of previous.chords) selectedChords.add(chord);
+  practiceDays.clear();
+  for (const day of previous.practiceDays) practiceDays.add(day);
+  strictChordsOnly = previous.strictChordsOnly;
+  chordGroupFilter = previous.chordGroupFilter;
+  document.querySelector("#strict-chords-only").checked = strictChordsOnly;
   for (const key of Object.keys(preferences)) delete preferences[key];
   Object.assign(preferences, previous.preferences);
   referenceAInput.value = String(previous.preferences.referenceA || 440);
@@ -915,6 +1180,17 @@ function restoreBackup(backup, replace) {
       if (Number.isFinite(Number(backup.preferences.metronomeBpm))) {
         preferences.metronomeBpm = Math.min(220, Math.max(40, Number(backup.preferences.metronomeBpm)));
       }
+      strictChordsOnly = backup.preferences.strictChordsOnly === true;
+      preferences.strictChordsOnly = strictChordsOnly;
+      chordGroupFilter = ["all", "3", "4", "5+"].includes(backup.preferences.chordGroup) ? backup.preferences.chordGroup : "all";
+      preferences.chordGroup = chordGroupFilter;
+      practiceDays.clear();
+      if (Array.isArray(backup.preferences.practiceDays)) {
+        for (const day of backup.preferences.practiceDays) {
+          if (Number.isInteger(day) && day >= 1 && day <= 7) practiceDays.add(day);
+        }
+      }
+      preferences.practiceDays = [...practiceDays].sort((a, b) => a - b);
       selectedChords.clear();
       for (const chord of preferences.chords || []) selectedChords.add(chord);
       document.querySelector("#reference-a").value = String(preferences.referenceA || 440);
@@ -922,6 +1198,9 @@ function restoreBackup(backup, replace) {
       metronomeValue.textContent = metronomeSlider.value;
     } else {
       selectedChords.clear();
+      practiceDays.clear();
+      strictChordsOnly = false;
+      chordGroupFilter = "all";
     }
   } else {
     const merged = mergeBackupData(backup, { songs, playlists, songOrder, favorites: [...favoriteSongs] });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   APP_STORAGE_KEY,
+  getChordGroupCounts,
   createStudioProProject,
   createBackup,
   getChordsFromLyrics,
@@ -188,4 +189,51 @@ test("filters and sorts the catalog by chords, search, playlists, and favorites"
   assert.deepEqual(getVisibleSongs({ ...common, selectedChords: new Set(), sort: "favorites" }).map((song) => song.id), ["two", "one"]);
   assert.deepEqual(getVisibleSongs({ ...common, selectedChords: new Set(), playlistFilter: "mpb", playlists: [{ id: "mpb", songIds: ["one"] }] }).map((song) => song.id), ["one"]);
   assert.deepEqual(getVisibleSongs({ ...common, selectedChords: new Set(), query: "ROCK", favoritesOnly: true }).map((song) => song.id), ["two"]);
+});
+
+test("strict chord filtering excludes songs with unknown chords and requires a selection", () => {
+  const songs = [
+    { id: "known", title: "Known", artist: "A", style: "X", chords: ["C", "G"] },
+    { id: "unknown", title: "Unknown", artist: "B", style: "X", chords: ["C", "G", "Em"] },
+    { id: "extended", title: "Extended", artist: "D", style: "X", chords: ["C", "G", "C7"] },
+    { id: "empty", title: "Empty", artist: "C", style: "X", chords: [] }
+  ];
+  const common = {
+    songs,
+    selectedChords: new Set(["C", "G"]),
+    query: "",
+    playlistFilter: "all",
+    playlists: [],
+    favoritesOnly: false,
+    favoriteSongs: new Set(),
+    sort: "manual",
+    songOrder: songs.map((song) => song.id)
+  };
+
+  assert.deepEqual(getVisibleSongs(common).map((song) => song.id), ["known", "unknown", "extended"]);
+  assert.deepEqual(getVisibleSongs({ ...common, strictChordsOnly: true }).map((song) => song.id), ["known"]);
+  assert.deepEqual(getVisibleSongs({ ...common, strictChordsOnly: true, selectedChords: new Set() }), []);
+});
+
+test("groups songs by the number of unique chord symbols", () => {
+  const songs = [
+    { chords: ["C", "G", "Am"] },
+    { chords: ["C", "G", "Am", "F", "D", "F"] },
+    { chords: ["D", "A", "G", "Bm"] },
+    { chords: [] }
+  ];
+
+  assert.deepEqual(getChordGroupCounts(songs), { all: 4, 3: 1, 4: 1, "5+": 1 });
+  assert.deepEqual(getVisibleSongs({
+    songs,
+    selectedChords: new Set(),
+    query: "",
+    playlistFilter: "all",
+    playlists: [],
+    favoritesOnly: false,
+    favoriteSongs: new Set(),
+    sort: "manual",
+    songOrder: [],
+    chordGroup: "5+"
+  }), [songs[1]]);
 });
