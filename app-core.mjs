@@ -78,10 +78,54 @@ export function getVisibleSongs({ songs, selectedChords, query, playlistFilter, 
   return result;
 }
 
+function getStudioProLyrics(project) {
+  const sections = Array.isArray(project.bancoDePartes) ? project.bancoDePartes : [];
+  const sectionById = new Map(sections.filter((section) => section && typeof section.id === "string")
+    .map((section) => [section.id, section]));
+  const orderedSections = Array.isArray(project.mapaAtual) && project.mapaAtual.length
+    ? project.mapaAtual
+    : sections;
+
+  return orderedSections.map((instance) => {
+    if (!instance || typeof instance !== "object") return "";
+    const section = typeof instance.id === "string" ? sectionById.get(instance.id) : undefined;
+    const rawTitle = [instance.t, instance.title, section?.t, section?.title]
+      .find((value) => typeof value === "string");
+    const title = rawTitle?.trim() || "";
+    const rawContents = [instance.c, instance.lyrics, section?.c, section?.lyrics]
+      .find((value) => typeof value === "string" && value.trim());
+    const contents = rawContents?.trim() || "";
+    const note = typeof instance.com === "string" ? instance.com.trim() : "";
+    if (!contents) return "";
+    const heading = title.toLocaleLowerCase("pt-BR") === "cifra"
+      ? note
+      : [title, note].filter(Boolean).join(" — ");
+    return heading ? `${heading}\n${contents}` : contents;
+  }).filter(Boolean).join("\n\n");
+}
+
+export function createStudioProProject(song) {
+  const title = typeof song?.title === "string" ? song.title.trim() : "";
+  const lyrics = typeof song?.lyrics === "string" ? song.lyrics.trim() : "";
+  if (!title || !lyrics) throw new Error("Informe o título e o conteúdo da cifra.");
+  const section = { id: "C1", t: "Cifra", c: lyrics, cor: "#8a0000" };
+  const tempo = Number(song.tempo);
+  return {
+    titulo: title,
+    autor: typeof song.artist === "string" ? song.artist.trim() : "",
+    tom: typeof song.key === "string" && song.key ? song.key : "C",
+    bpm: String(Number.isFinite(tempo) && tempo > 0 ? tempo : 90),
+    compasso: typeof song.compasso === "string" ? song.compasso.trim() : "",
+    bancoDePartes: [section],
+    mapaAtual: [{ ...section, com: "", mesclar: false, ocultar: false }]
+  };
+}
+
 export function normalizeImportedSong(song, fallbackTitle) {
   if (!song || typeof song !== "object" || Array.isArray(song)) return null;
   const title = song.title || song.titulo || song.name || fallbackTitle;
-  const lyrics = song.lyrics || song.letter || song.letra || song.lyricsText || song.cifra || song.text || "";
+  const lyrics = song.lyrics || song.letter || song.letra || song.lyricsText || song.cifra || song.text
+    || getStudioProLyrics(song);
   if (typeof title !== "string" || typeof lyrics !== "string") return null;
   const artist = song.artist || song.author || song.autor || song.artista || "";
   return {
@@ -90,6 +134,7 @@ export function normalizeImportedSong(song, fallbackTitle) {
     artist: typeof artist === "string" ? artist : "",
     key: song.key || song.tom || "C",
     tempo: Number(song.tempo || song.bpm) || 90,
+    compasso: typeof song.compasso === "string" ? song.compasso : "",
     lyrics,
     style: "Minha cifra",
     chords: getChordsFromLyrics(lyrics),

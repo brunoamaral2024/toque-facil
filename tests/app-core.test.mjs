@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   APP_STORAGE_KEY,
+  createStudioProProject,
   createBackup,
   getChordsFromLyrics,
   getVisibleSongs,
@@ -108,6 +109,55 @@ test("normalizes imported ChordPro songs and ignores invalid entries", () => {
   assert.equal(song.custom, true);
   assert.equal(normalizeImportedSong(null, "Importada"), null);
   assert.deepEqual(getChordsFromLyrics("[C] [C] [G7]"), ["C", "G7"]);
+});
+
+test("imports Cifras Studio Pro projects preserving metadata and performance order", () => {
+  const song = normalizeImportedSong({
+    titulo: "Canção teste",
+    autor: "Grupo",
+    tom: "D",
+    bpm: "120",
+    compasso: "4/4",
+    bancoDePartes: [
+      { id: "V1", t: "Verso", c: "[D]linha do verso" },
+      { id: "R", t: "Refrão", c: "[G]linha do refrão" }
+    ],
+    mapaAtual: [
+      { id: "R", t: "Refrão", c: "[G]linha do refrão" },
+      { id: "V1", t: "Verso", c: "[D]linha do verso", com: "Todos juntos" },
+      { id: "R", t: "Refrão", c: "[G]linha do refrão" }
+    ]
+  }, "projeto");
+
+  assert.equal(song.title, "Canção teste");
+  assert.equal(song.artist, "Grupo");
+  assert.equal(song.key, "D");
+  assert.equal(song.tempo, 120);
+  assert.equal(song.compasso, "4/4");
+  assert.equal(song.lyrics, "Refrão\n[G]linha do refrão\n\nVerso — Todos juntos\n[D]linha do verso\n\nRefrão\n[G]linha do refrão");
+  assert.deepEqual(song.chords, ["G", "D"]);
+});
+
+test("exports an editable Toque Fácil song in the Cifras Studio Pro project format", () => {
+  const project = createStudioProProject({
+    title: "Canção teste",
+    artist: "Grupo",
+    key: "D",
+    tempo: 120,
+    compasso: "3/4",
+    lyrics: "[D]linha\n\nRefrão\n[G]fim"
+  });
+  const imported = normalizeImportedSong(project, "arquivo");
+
+  assert.equal(project.titulo, "Canção teste");
+  assert.equal(project.autor, "Grupo");
+  assert.equal(project.tom, "D");
+  assert.equal(project.bpm, "120");
+  assert.equal(project.compasso, "3/4");
+  assert.equal(project.bancoDePartes[0].c, "[D]linha\n\nRefrão\n[G]fim");
+  assert.deepEqual(project.mapaAtual.map((section) => section.id), ["C1"]);
+  assert.equal(imported.lyrics, "[D]linha\n\nRefrão\n[G]fim");
+  assert.throws(() => createStudioProProject({ title: "Sem conteúdo", lyrics: "" }), /título e o conteúdo/);
 });
 
 test("transposes chord roots and slash bass notes without changing chord quality", () => {

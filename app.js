@@ -1,6 +1,7 @@
 import {
   getChordsFromLyrics,
   getVisibleSongs as filterVisibleSongs,
+  createStudioProProject,
   createBackup,
   mergeBackupData,
   normalizeChordFamily,
@@ -383,6 +384,7 @@ const songTitleInput = document.querySelector("#song-title");
 const songAuthorInput = document.querySelector("#song-author");
 const songKeyInput = document.querySelector("#song-key");
 const songBpmInput = document.querySelector("#song-bpm");
+const songCompassoInput = document.querySelector("#song-compasso");
 const lyricsInput = document.querySelector("#song-lyrics");
 const lyricsPreview = document.querySelector("#lyrics-preview");
 const saveStatus = document.querySelector("#save-status");
@@ -496,6 +498,7 @@ function saveCurrentSong() {
     difficulty: 2,
     tempo: Math.min(240, Math.max(40, Number(songBpmInput.value) || 90)),
     key: songKeyInput.value,
+    compasso: songCompassoInput.value.trim(),
     lyrics: lyricsInput.value,
     custom: true
   };
@@ -524,6 +527,7 @@ function openSong(song) {
   songAuthorInput.value = song.artist === "Cifra pessoal" ? "" : song.artist || "";
   songKeyInput.value = song.key || song.chords?.[0]?.replace(/m$/, "") || "C";
   songBpmInput.value = String(song.tempo || 90);
+  songCompassoInput.value = song.compasso || "";
   lyricsInput.value = song.lyrics || "";
   renderLyricsPreview();
   renderLyricsPreview(readerPreview);
@@ -538,6 +542,7 @@ function newSong() {
   songAuthorInput.value = "";
   songKeyInput.value = "C";
   songBpmInput.value = "90";
+  songCompassoInput.value = "";
   lyricsInput.value = "";
   renderLyricsPreview();
   renderLyricsPreview(readerPreview);
@@ -597,7 +602,7 @@ document.addEventListener("keydown", (event) => {
 document.querySelector("#transpose-up").addEventListener("click", () => { currentTranspose++; renderLyricsPreview(); renderLyricsPreview(readerPreview); updateTransposeLabel(); });
 document.querySelector("#transpose-down").addEventListener("click", () => { currentTranspose--; renderLyricsPreview(); renderLyricsPreview(readerPreview); updateTransposeLabel(); });
 document.querySelector("#transpose-reset").addEventListener("click", () => { currentTranspose = 0; renderLyricsPreview(); renderLyricsPreview(readerPreview); updateTransposeLabel(); });
-for (const input of [songTitleInput, songAuthorInput, songKeyInput, songBpmInput, lyricsInput]) input.addEventListener("input", scheduleSongSave);
+for (const input of [songTitleInput, songAuthorInput, songKeyInput, songBpmInput, songCompassoInput, lyricsInput]) input.addEventListener("input", scheduleSongSave);
 songKeyInput.addEventListener("change", scheduleSongSave);
 
 document.querySelector("#export-project").addEventListener("click", () => {
@@ -608,6 +613,28 @@ document.querySelector("#export-project").addEventListener("click", () => {
     songs: songs.filter((song) => song.custom)
   };
   downloadFile("meu-repertorio-toque-facil.json", JSON.stringify(project, null, 2), "application/json");
+});
+
+document.querySelector("#export-studio-project").addEventListener("click", () => {
+  const title = songTitleInput.value.trim();
+  const lyrics = lyricsInput.value.trim();
+  if (!title || !lyrics) {
+    saveStatus.textContent = "Abra ou preencha uma cifra com título e conteúdo antes de exportar.";
+    saveStatus.classList.add("save-error");
+    return;
+  }
+  const project = createStudioProProject({
+    title,
+    artist: songAuthorInput.value.trim(),
+    key: songKeyInput.value,
+    tempo: Number(songBpmInput.value),
+    compasso: songCompassoInput.value,
+    lyrics
+  });
+  const safeTitle = title.replace(/[<>:"/\\|?*\x00-\x1f]/g, "-").slice(0, 80) || "cifra";
+  downloadFile(`${safeTitle}-studio-pro.json`, JSON.stringify(project, null, 2), "application/json");
+  saveStatus.textContent = "Projeto compatível exportado. Abra-o no Studio Pro e carregue o arquivo JSON.";
+  saveStatus.classList.remove("save-error");
 });
 
 function isChordToken(token) {
@@ -760,6 +787,9 @@ async function handleImportFile(file) {
           : data && typeof data === "object" ? [data] : [];
     const imported = candidates.map((song) => parseImportedSong(song, file.name.replace(/\.[^.]+$/, ""))).filter(Boolean);
     if (!imported.length) throw new Error("O arquivo não contém cifras compatíveis.");
+    if ((Array.isArray(data?.bancoDePartes) || Array.isArray(data?.mapaAtual)) && !imported[0].lyrics.trim()) {
+      throw new Error("O projeto do Cifras Studio Pro não contém seções com cifra.");
+    }
     showImportPreview(imported);
   } catch (error) {
     console.error("Falha ao preparar a importação.", error);

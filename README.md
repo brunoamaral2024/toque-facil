@@ -31,6 +31,7 @@ O fluxo do GitHub Pages executa os mesmos testes antes de publicar o app.
 - Modo de leitura em tela cheia, com ajuste de fonte e rolagem automática configurável.
 - Transposição por semitom, metadados de tom/BPM, pré-visualização e impressão/Salvar como PDF.
 - Importação de projetos JSON e cifras `.txt`, `.cho`, `.pro` ou `.chordpro`, com prévia editável; também aceita arrastar arquivos para a área de importação.
+- Integração com JSON do Cifras Studio Pro: importa letras, metadados e ordem/repetições das seções; exporta a cifra aberta em uma seção para continuar editando no Studio Pro.
 - Exportação do repertório em JSON e backup completo (cifras, listas, favoritas, ordem e preferências), com opção de mesclar ou substituir dados ao restaurar.
 - Importação e reprodução local de áudio, download do arquivo original e exportação de um trecho selecionado para WAV.
 - Sugestões experimentais de acordes por análise local do trecho de áudio; os marcadores de tempo permitem ouvir cada sugestão. São estimativas, não uma transcrição garantida; confirme os resultados antes de usar.
@@ -48,4 +49,4 @@ O app grava cifras, listas, favoritas, ordem e preferências em um único regist
 
 O [Cifra Club](https://www.cifraclub.com.br/) hospeda conteúdo de terceiros. O app oferece uma busca externa restrita ao domínio oficial, mas não extrai nem republica letras/cifras automaticamente. Use conteúdo que você tenha autorização para usar ou importe sua cifra localmente.
 
-O [Cifras Studio Pro](https://github.com/brunoamaral2024/Cifras-Studio-Pro) é um editor de cifras sob licença MIT, não um catálogo de músicas. Seu fluxo de edição e transposição serviu como referência; o código dele não foi copiado para este projeto.
+O [Cifras Studio Pro](https://github.com/brunoamaral2024/Cifras-Studio-Pro) é um editor de cifras sob licença MIT, não um catálogo de músicas. Abra-o pelo link no editor do Toque Fácil. Para trazer um projeto, use **Carregar Projeto Salvo** no Studio Pro e importe o JSON baixado no Toque Fácil; para o caminho inverso, abra uma cifra e use **Exportar para Studio Pro**, depois carregue o JSON no editor externo. A integração usa o formato de projeto e não copia o código do editor.

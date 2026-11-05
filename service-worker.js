@@ -1,4 +1,4 @@
-const CACHE_NAME = "toque-facil-v10";
+const CACHE_NAME = "toque-facil-v11";
 const CACHE_PREFIX = "toque-facil-";
 const APP_SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./app-core.mjs", "./manifest.json", "./icon.svg"];
 
@@ -8,7 +8,7 @@ self.addEventListener("install", (event) => {
       .then((cache) => cache.addAll(APP_SHELL))
       .then(() => caches.keys())
       .then((keys) => {
-        if (keys.includes("toque-facil-v9")) return self.skipWaiting();
+        if (keys.includes("toque-facil-v10")) return self.skipWaiting();
       })
   );
 });

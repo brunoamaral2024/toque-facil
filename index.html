@@ -134,19 +134,20 @@
           <div>
             <div class="eyebrow">SEU REPERTÓRIO, DO SEU JEITO</div>
             <h2>Edite e organize suas cifras</h2>
-            <p>Escreva sua cifra com acordes entre colchetes, como <code>[C]um exemplo [G]</code>.</p>
+            <p>Importe o JSON do Studio Pro para trazer os dados e a sequência das seções. Ao exportar daqui, a cifra vai em uma seção única; no Studio Pro você pode dividi-la e organizar.</p>
           </div>
-          <a class="studio-link" href="https://tiagoosilva43-sudo.github.io/Cifras-Studio-Pro/" target="_blank" rel="noopener noreferrer">Conheça o Cifras Studio Pro ↗</a>
+          <a class="studio-link" href="https://tiagoosilva43-sudo.github.io/Cifras-Studio-Pro/" target="_blank" rel="noopener noreferrer">Abrir Cifras Studio Pro ↗</a>
         </div>
 
         <div class="editor-card">
           <div class="editor-toolbar">
             <button class="tool-button tool-primary" id="new-song" type="button">＋ Nova cifra</button>
             <div class="import-drop-zone">
-              <label class="tool-button" for="import-project">Importar / soltar arquivo</label>
+              <label class="tool-button" for="import-project" title="Importe projetos JSON do Cifras Studio Pro e cifras em texto">Importar projeto / cifra</label>
               <input id="import-project" type="file" accept=".json,.txt,.cho,.pro,.chordpro,application/json,text/plain" hidden>
             </div>
             <button class="tool-button" id="export-project" type="button">Exportar projeto</button>
+            <button class="tool-button" id="export-studio-project" type="button" title="Baixa a cifra aberta em formato compatível com o Cifras Studio Pro">Exportar para Studio Pro</button>
             <button class="tool-button" id="backup-data" type="button">Backup completo</button>
             <button class="tool-button" id="print-song" type="button">Salvar como PDF</button>
             <button class="tool-button" id="search-cifraclub" type="button">Buscar no Cifra Club ↗</button>
@@ -172,6 +173,7 @@
                 </select>
               </label>
               <label>Andamento (BPM)<input id="song-bpm" type="number" min="40" max="240" value="90"></label>
+              <label>Compasso<input id="song-compasso" maxlength="10" placeholder="4/4"></label>
             </div>
             <div class="transpose-controls">
               <span>Tom da cifra</span>
